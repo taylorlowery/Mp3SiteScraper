@@ -8,6 +8,3 @@ STORAGE_PATH = ''
 
 # url of the site from which we are downloading files - ex, 'https://www.#######.com'
 SITE_URL = ''
-
-# url of site's login page - ex, https://www.#######.com/myaccount/login.aspx
-LOGIN_URL = ''

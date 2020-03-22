@@ -11,7 +11,6 @@ import settings
 # use constants from settings page
 STORAGE_PATH = settings.STORAGE_PATH
 SITE_URL = settings.SITE_URL
-LOGIN_URL = settings.LOGIN_URL
 
 # use credentials from credentials page
 USERNAME = credentials.USERNAME
@@ -142,13 +141,14 @@ def attempt_file_download(session, file_id):
 def create_site_session():
     with requests.Session() as session:
         #  create session based on site login page
-        login_page = session.get(LOGIN_URL)
+        login_url = '{site_url}/myaccount/login.aspx'.format(site_url=SITE_URL)
+        login_page = session.get(login_url)
 
         # generate login data object based on site login form
         login_data = generate_login_data(login_page)
 
         # attempt login
-        response = session.post(LOGIN_URL, data=login_data)
+        response = session.post(login_url, data=login_data)
         if response.status_code == 200:  # successful login
             return session
         else:
