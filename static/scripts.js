@@ -1,8 +1,13 @@
 $("#button-single-file").click(function(){
+    jsonData = {
+        "file_id": $("#single-file-id").val()
+    };
    $.ajax({
       url: "/singlefile",
        type: "post",
-       data: {"test": "single-file"},
+       data: JSON.stringify(jsonData),
+       dataType: 'json',
+       contentType: "application/json",
        success: function(response){
            console.log(response);
            $("#single-file-response").html(response)
@@ -14,17 +19,23 @@ $("#button-single-file").click(function(){
    });
 });
 $("#button-file-range").click(function(){
+    jsonData = {
+          "first_file_id": $("#file-range-first-id").val(),
+           "last_file_id": $("#file-range-last-id").val()
+       };
    $.ajax({
       url: "/filerange",
        type: "post",
-       data: {"test": "file-range"},
+       data: JSON.stringify(jsonData),
+       dataType: 'json',
+       contentType: "application/json",
        success: function(response){
           console.log(response);
-          $("#single-file-response").html(response)
+          $("#file-range-response").html(response)
        },
        error: function(xhr) {
           console.log(xhr);
-          $("#single-file-response").html(xhr)
+          $("#file-range-response").html(xhr)
        }
    });
 });
@@ -33,13 +44,14 @@ $("#button-all-files").click(function(){
       url: "/allfiles",
        type: "post",
        data: {"test": "all-file"},
+       contentType: "application/json",
        success: function(response){
           console.log(response);
-          $("#single-file-response").html(response)
+          $("#all-files-response").html(response)
        },
        error: function(xhr) {
           console.log(xhr);
-          $("#single-file-response").html(xhr)
+          $("#all-files-response").html(xhr)
        }
    });
 });

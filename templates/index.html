@@ -6,14 +6,61 @@
 
 </head>
 <body>
-<button id="button-single-file">Download Single File</button>
-<p id="single-file-response"></p>
-<button id="button-file-range">Download Files 1 - 5</button>
-<p id="file-range-response"></p>
-<button id="button-all-files">Download All Files</button>
-<p id="all-files-response"></p>
+<h1>MP3 Site Scraper UI</h1>
+<table>
+    <tr>
+        <td>
+            <h3>Download Single File</h3>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <label for="single-file-id">File Id:</label>
+            <input type="text" id="single-file-id">
+        </td>
+        <td><button id="button-single-file">Download Single File</button></td>
+    </tr>
+    <tr>
+        <td><div id="single-file-response"></div></td>
+    </tr>
+</table>
+<table>
+    <tr>
+        <td><h3>Download File Range:</h3></td>
+    </tr>
+    <tr>
+        <td>
+            <label for="file-range-first-id" >First File Id:</label><input type="text" id="file-range-first-id">
+        </td>
+        <td>
+            <label for="file-range-last-id">Last File Id:</label><input type="text" id="file-range-last-id">
+        </td>
+        <td>
+            <button id="button-file-range">Download Files</button>
+        </td>
+    </tr>
+    <tr>
+        <td><div id="file-range-response"></div></td>
+    </tr>
+</table>
+<table>
+    <tr>
+        <td>
+            <h3>Download All Files</h3>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <button id="button-all-files">Download All Files</button>
+        </td>
+    </tr>
+    <tr>
+        <td><div id="all-files-response"></div></td>
+    </tr>
+</table>
+
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-<script src="../static/scripts.js"></script>
+<script src="../static/scripts.js" type="text/javascript"></script>
 </body>
 </html>

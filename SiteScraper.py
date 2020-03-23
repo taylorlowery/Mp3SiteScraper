@@ -102,6 +102,8 @@ def attempt_file_download(session, file_id):
     filename = '{0}_{1}.mp3'.format(file_id, page_data.title.replace(' ', '_'))
     full_file_path = STORAGE_PATH + filename
 
+    message = ''
+
     # assuming that worked
     file = session.get(dl_url, allow_redirects=True)
     if file.status_code == 200:
@@ -151,9 +153,15 @@ def attempt_file_download(session, file_id):
         audiofile.tag.genre = page_data.genre
         audiofile.tag.save()
 
-        print("Download of {0} successful!".format(filename))
+        message = "Download of {0} successful!".format(filename)
     else:
-        print("Download of {0} failed".format(filename))
+        message = "Download of {0} failed".format(filename)
+
+    print(message)
+    return {
+        'message': message,
+        'page_data': page_data
+    }
 
 
 def create_site_session():
@@ -176,9 +184,14 @@ def create_site_session():
 def download_single_file(file_id):
     with create_site_session() as session:
         if session is not None:
-            attempt_file_download(session, file_id)
+            response = attempt_file_download(session, file_id)
+            return response
         else:
-            print("Unable to log into site")
+            message = "Unable to log into site"
+            print(message)
+            return {
+                'message': message
+            }
 
 
 def download_file_range(initial_file_id, last_file_id):
@@ -186,7 +199,18 @@ def download_file_range(initial_file_id, last_file_id):
         if session is not None:
             # assuming that worked:
             # start looping through every web page and see how it goes!
-            for file_id in range(initial_file_id, last_file_id + 1):
-                attempt_file_download(session, file_id)
+            files = []
+            for file_id in range(int(initial_file_id), int(last_file_id) + 1):
+                response = attempt_file_download(session, file_id)
+                files.append(response)
+            return files
+
         else:
-            print("Unable to log into site")
+            files = []
+            message = "Unable to log into site"
+            print(message)
+            message_json = {
+                'message': message
+            }
+            files.append(message_json)
+            return files
