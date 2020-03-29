@@ -1,5 +1,5 @@
 import SiteScraper
-import PageData
+import AudioFileData
 
 from flask import Flask, render_template, jsonify, request
 from flask_restful import Api, Resource
@@ -7,7 +7,7 @@ from flask_restful import Api, Resource
 app = Flask(__name__, template_folder='templates')
 api = Api(app)
 
-# TODO: Route for downloading single file
+
 class SingleFile(Resource):
     def post(self):
         posted_data = request.json
@@ -16,7 +16,7 @@ class SingleFile(Resource):
         message = file_data['message']
         return render_template('singlefileconfirmation.html', message=message)
 
-# TODO: Route for downloading range of files
+
 class FileRange(Resource):
     def post(self):
         posted_data = request.json
@@ -25,7 +25,9 @@ class FileRange(Resource):
         files = SiteScraper.download_file_range(first_file_id, last_file_id)
         return render_template('multiplefilesconfirmation.html', files=files)
 
+
 # TODO: Route for starting download of all un-downloaded files
+# This should have a specification for ALL files or just those not successfully downloaded
 class AllFiles(Resource):
     def post(self):
         posted_data = request.get_data()
@@ -34,11 +36,6 @@ class AllFiles(Resource):
 
 
 @app.route('/')
-def greeting():
-    return "Howdy!"
-
-
-@app.route('/home')
 def home_page():
     return render_template('index.html')
 

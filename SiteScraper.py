@@ -4,15 +4,19 @@ import eyed3
 import urllib.request
 import io
 from PIL import Image
+import csv
+import operator
+from datetime import datetime
 
 import credentials
 import settings
 
-from PageData import PageData
+from AudioFileData import AudioFileData
 
 # use constants from settings page
 STORAGE_PATH = settings.STORAGE_PATH
 SITE_URL = settings.SITE_URL
+CSV_OUTPUT_FILE = settings.CSV_OUTPUT_PATH
 
 # use credentials from credentials page
 USERNAME = credentials.USERNAME
@@ -46,72 +50,142 @@ def generate_login_data(login_page):
     return login_data
 
 
-def get_file_data_from_page(session, details_url):
+def audio_file_to_dict(file):
+    audio_file_dict = {'Id': file.id,
+                       'Title': file.title,
+                       'Album': file.album,
+                       'Album Artist': file.album_artist,
+                       'Artist': file.artist,
+                       'Genre': file.genre,
+                       'Description': file.description,
+                       'Track': file.track_num,
+                       'Total Tracks': file.total_tracks,
+                       'Speaker Image URL': file.speaker_image_url,
+                       'Album Image URL': file.album_image_url,
+                       'Details URL': file.details_url,
+                       'Download URL': file.download_url,
+                       'Comment': file.comment,
+                       'Download Successful': file.download_successful,
+                       'Last Download Attempt': file.last_download_attempt}
+    return audio_file_dict
 
+
+def save_files_to_csv(files, overwrite=False):
+    with open(CSV_OUTPUT_FILE, 'w+') as f:
+        header_names = ['Id',
+                        'Title',
+                        'Album',
+                        'Album Artist',
+                        'Artist',
+                        'Genre',
+                        'Description',
+                        'Track',
+                        'Total Tracks',
+                        'Speaker Image URL',
+                        'Album Image URL',
+                        'Details URL',
+                        'Download URL',
+                        'Comment',
+                        'Download Successful',
+                        'Last Download Attempt']
+
+        writer = csv.DictWriter(f, fieldnames=header_names)
+        reader = csv.DictReader(f, fieldnames=header_names)
+
+        row_count = sum(1 for row in reader)
+
+        audio_files = [file['audio_file_data'] for file in files]
+        writer.writeheader()
+        audio_file_dict = [audio_file_to_dict(file) for file in audio_files]
+        writer.writerows(audio_file_dict)
+
+
+        # if row_count == 0 or overwrite:
+        #     writer.writeheader()
+        #     audio_file_dict = [audio_file_to_dict(file) for file in audio_files]
+        #     writer.writerows(audio_file_dict)
+        # else:  # csv exists, try to update an existing row
+        #     for file in files:
+        #         found_row = False
+        #         for row in reader:
+        #             if row['Id'] == file.id:
+        #                 found_row = True
+        #                 file_dict = audio_file_to_dict(file)
+        #                 row = file_dict
+        #         if found_row:
+        #             writer.writerow(row)
+        #         else:
+        #             writer.writerow(file_dict)
+
+
+def get_file_data_from_page(session, details_url, download_url):
     open_details_page = session.get(details_url)
     details_soup = BeautifulSoup(open_details_page.content, 'lxml')
 
     # get metadata from page
     content = details_soup.find('td', class_='content')
 
-    page_data = PageData()
+    audio_file_data = AudioFileData()
 
     # Title = Title
-    page_data.title = clean_html_contents(content.h1) if content.h1 else ''
+    audio_file_data.title = clean_html_contents(content.h1) if content.h1 else ''
+
+    if audio_file_data.title == 'Item Details':
+        # Error Message - typically to indicate that there is no file at that ID
+        warning = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_Notification1_panelNotification'))
+        if warning != '':
+            audio_file_data.title = warning
+
     # Album = Organization
-    page_data.album = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
+    audio_file_data.album = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
     # Album Artist = Group/Ministry
-    page_data.album_artist = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelProductGroups'))
+    audio_file_data.album_artist = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelProductGroups'))
     # Artist = Speaker
-    page_data.speaker = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypSpeaker'))
+    audio_file_data.artist = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypSpeaker'))
     # Genre = Topic
-    page_data.genre = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypTopic'))
+    audio_file_data.genre = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypTopic'))
     # Comment = Description + Speaker
     # page_data['comment'] = content.find(id='').text
     # Description
-    page_data.description = content.p.text if content.p else ''
+    audio_file_data.description = content.p.text if content.p else ''
     # Track  # = Series (have to parse because it's formatted as Part x of a y part series.
     # You can see how I did it in the spreadsheet)
     raw_track_info = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
     track_data = [x for x in raw_track_info.split() if x.isdigit()] if raw_track_info else ''
-    page_data.track_number = track_data[0] if len(track_data) == 2 else 0
-    page_data.total_tracks = track_data[1] if len(track_data) == 2 else 0
-    # Year / Date = Date
-    # year = dl_soup.find(id='').text
+    audio_file_data.track_num = track_data[0] if len(track_data) == 2 else None
+    audio_file_data.total_tracks = track_data[1] if len(track_data) == 2 else None
+    # Year / Date = Unfortunately, no consistent date found on web page. Have to get it from the file
 
     # image urls
     speaker_img_url_stub = content.find(id='ctl00_ContentPlaceHolder_imgSpeaker')['src'] if content.find(
         id='ctl00_ContentPlaceHolder_imgSpeaker') else ''
-    page_data.speaker_image_url = '{}{}'.format(SITE_URL, speaker_img_url_stub) if speaker_img_url_stub else ''
+    audio_file_data.speaker_image_url = '{}{}'.format(SITE_URL, speaker_img_url_stub) if speaker_img_url_stub else ''
 
     album_img_url_stub = content.find(id='ctl00_ContentPlaceHolder_imgItem')['src'] if content.find(
         id='ctl00_ContentPlaceHolder_imgItem') else ''
-    page_data.album_image_url = '{}{}'.format(SITE_URL, album_img_url_stub) if album_img_url_stub else ''
+    audio_file_data.album_image_url = '{}{}'.format(SITE_URL, album_img_url_stub) if album_img_url_stub else ''
 
-    return page_data
+    audio_file_data.details_url = details_url
+    audio_file_data.download_url = download_url
+
+    return audio_file_data
 
 
-def attempt_file_download(session, file_id):
-    # urls for details web page and download link
-    details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
-    dl_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
-
-    page_data = get_file_data_from_page(session=session, details_url=details_url)
-
+def download_file_from_page(session, audio_file_data):
     # generate name for this mp3 file
-    filename = '{0}_{1}.mp3'.format(file_id, page_data.title.replace(' ', '_'))
+    filename = '{0}_{1}.mp3'.format(audio_file_data.id, audio_file_data.title.replace(' ', '_'))
     full_file_path = STORAGE_PATH + filename
 
     message = ''
 
     # assuming that worked
-    file = session.get(dl_url, allow_redirects=True)
+    file = session.get(audio_file_data.download_url, allow_redirects=True)
     if file.status_code == 200:
         with open(full_file_path, 'wb') as f:
             f.write(file.content)
 
         # get original file metadata
-        # TODO: see if more metadata ca be pulled from file
+        # TODO: Check metatada from page against mp3 metadata & overwrite either where necessary. Prefer mp3 data
         # TODO: Save all original data as audiofile tag comment
         audiofile = eyed3.load(full_file_path)
         original_title = audiofile.tag.title
@@ -123,16 +197,16 @@ def attempt_file_download(session, file_id):
         original_year = audiofile.tag.getBestDate()
 
         # cover image
-        if page_data.album_image_url != "":
-            album_image = Image.open(urllib.request.urlopen(page_data.album_image_url))
+        if audio_file_data.album_image_url != "":
+            album_image = Image.open(urllib.request.urlopen(audio_file_data.album_image_url))
             album_image_bytes = io.BytesIO()
             album_image.save(album_image_bytes, format='PNG')
             album_image_bytes = album_image_bytes.getvalue()
             audiofile.tag.images.set(3, album_image_bytes, "image/jpeg", u"Description")
 
         # artist image
-        if page_data.speaker_image_url != "":
-            artist_image = Image.open(urllib.request.urlopen(page_data.speaker_image_url))
+        if audio_file_data.speaker_image_url != "":
+            artist_image = Image.open(urllib.request.urlopen(audio_file_data.speaker_image_url))
             artist_image_bytes = io.BytesIO()
             artist_image.save(artist_image_bytes, format='PNG')
             artist_image_bytes = artist_image_bytes.getvalue()
@@ -140,27 +214,47 @@ def attempt_file_download(session, file_id):
 
         # add appropriate metadata to audio file
         # TODO: full comparison of original metadata and metadata from page. Only use page if blank?
+        # TODO: add ALL relevant data from audiofile.tag to audio_file_data
         if audiofile.tag.artist is None or audiofile.tag.artist == "":
-            audiofile.tag.artist = page_data.speaker
+            audiofile.tag.artist = audio_file_data.artist
         if audiofile.tag.album_artist is None or audiofile.tag.album_artist == "":
-            audiofile.tag.album_artist = page_data.album_artist
+            audiofile.tag.album_artist = audio_file_data.album_artist
+        audio_file_data.year = original_year
 
         # attach download and details links
-        audiofile.tag.audio_file_url = dl_url
-        audiofile.tag.audio_source_url = details_url
+        audiofile.tag.audio_file_url = audio_file_data.download_url
+        audiofile.tag.audio_source_url = audio_file_data.details_url
 
         # definitely use page_data genre
-        audiofile.tag.genre = page_data.genre
+        audiofile.tag.genre = audio_file_data.genre
+
+        # finally save all metadata to mp3 file
         audiofile.tag.save()
+        # confirm download on metadata class
+        audio_file_data.download_successful = True
 
         message = "Download of {0} successful!".format(filename)
     else:
         message = "Download of {0} failed".format(filename)
 
+    return message, audio_file_data
+
+
+def attempt_file_download(session, file_id):
+    # urls for details web page and download link
+    details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
+    dl_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
+
+    audio_file_data = get_file_data_from_page(session=session, details_url=details_url, download_url=dl_url)
+    audio_file_data.id = file_id
+
+    message = '{}{}'.format(audio_file_data.id, audio_file_data.title)
+    # message = download_file_from_page(session, audio_file_data)
+
     print(message)
     return {
         'message': message,
-        'page_data': page_data
+        'audio_file_data': audio_file_data
     }
 
 
@@ -203,6 +297,9 @@ def download_file_range(initial_file_id, last_file_id):
             for file_id in range(int(initial_file_id), int(last_file_id) + 1):
                 response = attempt_file_download(session, file_id)
                 files.append(response)
+
+            save_files_to_csv(files)
+
             return files
 
         else:
