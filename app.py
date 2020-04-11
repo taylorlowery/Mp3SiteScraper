@@ -12,7 +12,16 @@ class SingleFile(Resource):
     def post(self):
         posted_data = request.json
         file_id = posted_data['file_id']
-        file_data = SiteScraper.download_single_file(file_id)
+        file_data = SiteScraper.download_single_audio_file(file_id)
+        message = file_data['message']
+        return render_template('singlefileconfirmation.html', message=message)
+
+
+class SingleFileMetaData(Resource):
+    def post(self):
+        posted_data = request.json
+        file_id = posted_data['file_id']
+        file_data = SiteScraper.download_single_audio_file(file_id, metadata_only=True)
         message = file_data['message']
         return render_template('singlefileconfirmation.html', message=message)
 
@@ -22,13 +31,29 @@ class FileRange(Resource):
         posted_data = request.json
         first_file_id = posted_data['first_file_id']
         last_file_id = posted_data['last_file_id']
-        files = SiteScraper.download_file_range(first_file_id, last_file_id)
+        files = SiteScraper.download_audio_file_range(first_file_id, last_file_id)
+        return render_template('multiplefilesconfirmation.html', files=files)
+
+
+class FileMetaDataRange(Resource):
+    def post(self):
+        posted_data = request.json
+        first_file_id = posted_data['first_file_id']
+        last_file_id = posted_data['last_file_id']
+        files = SiteScraper.download_audio_file_range(first_file_id, last_file_id, metadata_only=True)
         return render_template('multiplefilesconfirmation.html', files=files)
 
 
 # TODO: Route for starting download of all un-downloaded files
 # This should have a specification for ALL files or just those not successfully downloaded
 class AllFiles(Resource):
+    def post(self):
+        posted_data = request.get_data()
+        message = "Doesn't work yet lol ¯\\_(ツ)_/¯"
+        return render_template('singlefileconfirmation.html', message=message)
+
+
+class AllMetaData(Resource):
     def post(self):
         posted_data = request.get_data()
         message = "Doesn't work yet lol ¯\\_(ツ)_/¯"
@@ -43,6 +68,9 @@ def home_page():
 api.add_resource(SingleFile, '/singlefile')
 api.add_resource(FileRange, '/filerange')
 api.add_resource(AllFiles, '/allfiles')
+api.add_resource(SingleFileMetaData, '/singlefilemetadata')
+api.add_resource(FileMetaDataRange, '/filemetadatarange')
+api.add_resource(AllMetaData, '/allmetadata')
 
 if __name__ == "__main__":
     app.run(debug=True)

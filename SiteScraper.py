@@ -5,8 +5,9 @@ import urllib.request
 import io
 from PIL import Image
 import csv
-import operator
-from datetime import datetime
+import os
+import shutil
+import pandas as pd
 
 import credentials
 import settings
@@ -69,53 +70,58 @@ def audio_file_to_dict(file):
                        'Last Download Attempt': file.last_download_attempt}
     return audio_file_dict
 
-
+# TODO: replace csv with pandas, which can
 def save_files_to_csv(files, overwrite=False):
     with open(CSV_OUTPUT_FILE, 'w+') as f:
-        header_names = ['Id',
-                        'Title',
-                        'Album',
-                        'Album Artist',
-                        'Artist',
-                        'Genre',
-                        'Description',
-                        'Track',
-                        'Total Tracks',
-                        'Speaker Image URL',
-                        'Album Image URL',
-                        'Details URL',
-                        'Download URL',
-                        'Comment',
-                        'Download Successful',
-                        'Last Download Attempt']
+        with open('temp_files.csv', 'w+') as t:
 
-        writer = csv.DictWriter(f, fieldnames=header_names)
-        reader = csv.DictReader(f, fieldnames=header_names)
+            header_names = ['Id',
+                            'Title',
+                            'Album',
+                            'Album Artist',
+                            'Artist',
+                            'Genre',
+                            'Description',
+                            'Track',
+                            'Total Tracks',
+                            'Speaker Image URL',
+                            'Album Image URL',
+                            'Details URL',
+                            'Download URL',
+                            'Comment',
+                            'Download Successful',
+                            'Last Download Attempt']
 
-        row_count = sum(1 for row in reader)
+            writer = csv.DictWriter(t, fieldnames=header_names)
+            reader = csv.DictReader(f, fieldnames=header_names)
 
-        audio_files = [file['audio_file_data'] for file in files]
-        writer.writeheader()
-        audio_file_dict = [audio_file_to_dict(file) for file in audio_files]
-        writer.writerows(audio_file_dict)
+            audio_files = [file['audio_file_data'] for file in files]
 
+            rowCount = 0
+            # only runs if there are already rows in csv
+            for row in reader:
+                rowCount = rowCount + 1
+                needs_update = False
+                update_row = None
+                for file in files:
+                    if row['Id'] == file['Id']:
+                        needs_update = True
+                        update_row = audio_file_to_dict(file)
+                        break
+                if needs_update:
+                    writer.writerow(update_row)
+                else:
+                    writer.writerow(row)
 
-        # if row_count == 0 or overwrite:
-        #     writer.writeheader()
-        #     audio_file_dict = [audio_file_to_dict(file) for file in audio_files]
-        #     writer.writerows(audio_file_dict)
-        # else:  # csv exists, try to update an existing row
-        #     for file in files:
-        #         found_row = False
-        #         for row in reader:
-        #             if row['Id'] == file.id:
-        #                 found_row = True
-        #                 file_dict = audio_file_to_dict(file)
-        #                 row = file_dict
-        #         if found_row:
-        #             writer.writerow(row)
-        #         else:
-        #             writer.writerow(file_dict)
+            # write a new csv
+            if rowCount == 0:
+                writer.writeheader()
+                audio_file_dict = [audio_file_to_dict(file) for file in audio_files]
+                writer.writerows(audio_file_dict)
+
+    shutil.copy('temp_files.csv', CSV_OUTPUT_FILE)
+
+   # os.remove('temp_file.py')
 
 
 def get_file_data_from_page(session, details_url, download_url):
@@ -240,7 +246,7 @@ def download_file_from_page(session, audio_file_data):
     return message, audio_file_data
 
 
-def attempt_file_download(session, file_id):
+def attempt_file_download(session, file_id, metadata_only=False):
     # urls for details web page and download link
     details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
     dl_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
@@ -249,7 +255,10 @@ def attempt_file_download(session, file_id):
     audio_file_data.id = file_id
 
     message = '{}{}'.format(audio_file_data.id, audio_file_data.title)
-    # message = download_file_from_page(session, audio_file_data)
+
+    # only download audio file if parameter says to
+    if not metadata_only:
+        message = download_file_from_page(session, audio_file_data)
 
     print(message)
     return {
@@ -275,10 +284,10 @@ def create_site_session():
             return None
 
 
-def download_single_file(file_id):
+def download_single_audio_file(file_id, metadata_only=False):
     with create_site_session() as session:
         if session is not None:
-            response = attempt_file_download(session, file_id)
+            response = attempt_file_download(session, file_id, metadata_only=metadata_only)
             return response
         else:
             message = "Unable to log into site"
@@ -288,14 +297,14 @@ def download_single_file(file_id):
             }
 
 
-def download_file_range(initial_file_id, last_file_id):
+def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False):
     with create_site_session() as session:
         if session is not None:
             # assuming that worked:
             # start looping through every web page and see how it goes!
             files = []
             for file_id in range(int(initial_file_id), int(last_file_id) + 1):
-                response = attempt_file_download(session, file_id)
+                response = attempt_file_download(session, file_id, metadata_only=metadata_only)
                 files.append(response)
 
             save_files_to_csv(files)
