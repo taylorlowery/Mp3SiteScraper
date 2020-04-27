@@ -3,7 +3,7 @@ $("#button-single-file").click(function(){
         "file_id": $("#single-file-id").val()
     };
    $.ajax({
-      url: "/singlefile",
+      url: "/singlefilemetadata",
        type: "post",
        data: JSON.stringify(jsonData),
        dataType: 'json',
@@ -24,7 +24,7 @@ $("#button-file-range").click(function(){
            "last_file_id": $("#file-range-last-id").val()
        };
    $.ajax({
-      url: "/filerange",
+      url: "/filemetadatarange",
        type: "post",
        data: JSON.stringify(jsonData),
        dataType: 'json',
@@ -41,7 +41,7 @@ $("#button-file-range").click(function(){
 });
 $("#button-all-files").click(function(){
    $.ajax({
-      url: "/allfiles",
+      url: "/allmetadata",
        type: "post",
        data: {"test": "all-file"},
        contentType: "application/json",

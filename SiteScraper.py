@@ -254,7 +254,7 @@ def attempt_file_download(session, file_id, metadata_only=False):
     audio_file_data = get_file_data_from_page(session=session, details_url=details_url, download_url=dl_url)
     audio_file_data.id = file_id
 
-    message = '{}{}'.format(audio_file_data.id, audio_file_data.title)
+    message = '{} - {}'.format(audio_file_data.id, audio_file_data.title)
 
     # only download audio file if parameter says to
     if not metadata_only:
