@@ -4,9 +4,6 @@ import eyed3
 import urllib.request
 import io
 from PIL import Image
-import csv
-import os
-import shutil
 import pandas as pd
 
 import credentials
@@ -52,76 +49,24 @@ def generate_login_data(login_page):
 
 
 def audio_file_to_dict(file):
-    audio_file_dict = {'Id': file.id,
-                       'Title': file.title,
-                       'Album': file.album,
-                       'Album Artist': file.album_artist,
-                       'Artist': file.artist,
-                       'Genre': file.genre,
-                       'Description': file.description,
-                       'Track': file.track_num,
-                       'Total Tracks': file.total_tracks,
-                       'Speaker Image URL': file.speaker_image_url,
-                       'Album Image URL': file.album_image_url,
-                       'Details URL': file.details_url,
-                       'Download URL': file.download_url,
-                       'Comment': file.comment,
-                       'Download Successful': file.download_successful,
-                       'Last Download Attempt': file.last_download_attempt}
+    audio_file_dict = {'id': file.id,
+                       'title': file.title,
+                       'album': file.album,
+                       'album_artist': file.album_artist,
+                       'artist': file.artist,
+                       'genre': file.genre,
+                       'description': file.description,
+                       'track_num': file.track_num,
+                       'total_tracks': file.total_tracks,
+                       'speaker_image_url': file.speaker_image_url,
+                       'album_image_url': file.album_image_url,
+                       'details_url': file.details_url,
+                       'download_url': file.download_url,
+                       'comment': file.comment,
+                       'year': file.year,
+                       'download_successful': file.download_successful,
+                       'last_download_attempt': file.last_download_attempt}
     return audio_file_dict
-
-# TODO: replace csv with pandas, which can
-def save_files_to_csv(files, overwrite=False):
-    with open(CSV_OUTPUT_FILE, 'w+') as f:
-        with open('temp_files.csv', 'w+') as t:
-
-            header_names = ['Id',
-                            'Title',
-                            'Album',
-                            'Album Artist',
-                            'Artist',
-                            'Genre',
-                            'Description',
-                            'Track',
-                            'Total Tracks',
-                            'Speaker Image URL',
-                            'Album Image URL',
-                            'Details URL',
-                            'Download URL',
-                            'Comment',
-                            'Download Successful',
-                            'Last Download Attempt']
-
-            writer = csv.DictWriter(t, fieldnames=header_names)
-            reader = csv.DictReader(f, fieldnames=header_names)
-
-            audio_files = [file['audio_file_data'] for file in files]
-
-            rowCount = 0
-            # only runs if there are already rows in csv
-            for row in reader:
-                rowCount = rowCount + 1
-                needs_update = False
-                update_row = None
-                for file in files:
-                    if row['Id'] == file['Id']:
-                        needs_update = True
-                        update_row = audio_file_to_dict(file)
-                        break
-                if needs_update:
-                    writer.writerow(update_row)
-                else:
-                    writer.writerow(row)
-
-            # write a new csv
-            if rowCount == 0:
-                writer.writeheader()
-                audio_file_dict = [audio_file_to_dict(file) for file in audio_files]
-                writer.writerows(audio_file_dict)
-
-    shutil.copy('temp_files.csv', CSV_OUTPUT_FILE)
-
-   # os.remove('temp_file.py')
 
 
 def get_file_data_from_page(session, details_url, download_url):
@@ -307,7 +252,7 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
                 response = attempt_file_download(session, file_id, metadata_only=metadata_only)
                 files.append(response)
 
-            save_files_to_csv(files)
+            save_list_of_files_to_csv(files)
 
             return files
 
@@ -320,3 +265,51 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
             }
             files.append(message_json)
             return files
+
+
+def download_all_files(metadata_only=False):
+    # check for metadata.
+
+    # if no metadata, create it?
+
+    # then download all files?
+
+    pass
+
+
+def csv_to_audiofiledata_list():
+
+    # create dataframe from csv
+    dataframe = pd.read(CSV_OUTPUT_FILE)
+
+    # dataframe to audiofiles
+    files = [(AudioFileData(id=row.id,
+                            title=row.title,
+                            album=row.album,
+                            album_artist=row.album_artist,
+                            artist=row.artist,
+                            genre=row.genre,
+                            description=row.description,
+                            track_num=row.track_num,
+                            total_tracks=row.total_tracks,
+                            speaker_image_url=row.speaker_image_url,
+                            album_image_url=row.album_image_url,
+                            details_url=row.details_url,
+                            download_url=row.download_url,
+                            comment=row.comment,
+                            year=row.year,
+                            download_successful=row.download_successful,
+                            last_download_attempt=row.last_download_attempt)) for i, row in dataframe.iterrows()]
+    return files
+
+
+def save_list_of_files_to_csv(files):
+    if len(files) > 0:
+        # get files from input
+        files = [x['audio_file_data'] for x in files]
+        # get class attributes
+        fields = vars(files[0]).keys()
+        # create dataframe from list of audiofiles and fields
+        dataframe = pd.DataFrame([[getattr(i, j) for j in fields] for i in files], columns=fields)
+        # save dataframe to csv
+        dataframe.to_csv(CSV_OUTPUT_FILE, index=False)
