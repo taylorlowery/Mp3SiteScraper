@@ -1,5 +1,4 @@
 import SiteScraper
-import AudioFileData
 
 from flask import Flask, render_template, jsonify, request
 from flask_restful import Api, Resource
@@ -8,15 +7,19 @@ app = Flask(__name__, template_folder='templates')
 api = Api(app)
 
 
+# download metadata and/or file
 class SingleFile(Resource):
     def post(self):
         posted_data = request.json
         file_id = posted_data['file_id']
-        file_data = SiteScraper.download_single_audio_file(file_id)
+        metadata_only = posted_data['metadata_only']
+        redownload = posted_data['redownload']
+        file_data = SiteScraper.download_single_audio_file(file_id, metadata_only=metadata_only)
         message = file_data['message']
         return render_template('singlefileconfirmation.html', message=message)
 
 
+# download metadata
 class SingleFileMetaData(Resource):
     def post(self):
         posted_data = request.json
@@ -26,15 +29,19 @@ class SingleFileMetaData(Resource):
         return render_template('singlefileconfirmation.html', message=message)
 
 
+# download range of files and/or their metadata
 class FileRange(Resource):
     def post(self):
         posted_data = request.json
         first_file_id = posted_data['first_file_id']
         last_file_id = posted_data['last_file_id']
-        files = SiteScraper.download_audio_file_range(first_file_id, last_file_id)
+        metadata_only = posted_data['metadata_only']
+        redownload = posted_data['redownload']
+        files = SiteScraper.download_audio_file_range(first_file_id, last_file_id, metadata_only=metadata_only, redownload=redownload)
         return render_template('multiplefilesconfirmation.html', files=files)
 
 
+# download metadata for range of files
 class FileMetaDataRange(Resource):
     def post(self):
         posted_data = request.json

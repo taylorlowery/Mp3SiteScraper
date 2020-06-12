@@ -5,6 +5,8 @@ import urllib.request
 import io
 from PIL import Image
 import pandas as pd
+import time
+import datetime
 
 import credentials
 import settings
@@ -123,6 +125,9 @@ def get_file_data_from_page(session, details_url, download_url):
 
 
 def download_file_from_page(session, audio_file_data):
+
+    audio_file_data.last_download_attempt = datetime.datetime.now()
+
     # generate name for this mp3 file
     filename = '{0}_{1}.mp3'.format(audio_file_data.id, audio_file_data.title.replace(' ', '_'))
     full_file_path = STORAGE_PATH + filename
@@ -179,10 +184,13 @@ def download_file_from_page(session, audio_file_data):
         # definitely use page_data genre
         audiofile.tag.genre = audio_file_data.genre
 
-        # finally save all metadata to mp3 file
-        audiofile.tag.save()
-        # confirm download on metadata class
-        audio_file_data.download_successful = True
+        try:
+            # finally save all metadata to mp3 file
+            audiofile.tag.save()
+            # confirm download on metadata class
+            audio_file_data.download_successful = True
+        except:
+            message = "Download of {0} failed".format(filename)
 
         message = "Download of {0} successful!".format(filename)
     else:
@@ -191,7 +199,7 @@ def download_file_from_page(session, audio_file_data):
     return message, audio_file_data
 
 
-def attempt_file_download(session, file_id, metadata_only=False):
+def attempt_file_download(session, file_id, metadata_only=False, redownload=False):
     # urls for details web page and download link
     details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
     dl_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
@@ -202,8 +210,8 @@ def attempt_file_download(session, file_id, metadata_only=False):
     message = '{} - {}'.format(audio_file_data.id, audio_file_data.title)
 
     # only download audio file if parameter says to
-    if not metadata_only:
-        message = download_file_from_page(session, audio_file_data)
+    if not metadata_only and not redownload:
+        message, audio_file_data = download_file_from_page(session, audio_file_data)
 
     print(message)
     return {
@@ -232,7 +240,15 @@ def create_site_session():
 def download_single_audio_file(file_id, metadata_only=False):
     with create_site_session() as session:
         if session is not None:
+            metadata = csv_to_audiofiledata_list(CSV_OUTPUT_FILE)
+            metadata_ids = [x.id for x in metadata]
             response = attempt_file_download(session, file_id, metadata_only=metadata_only)
+            file = response['audio_file_data']
+            if file.id in metadata_ids:
+                metadata = [file if file.id == x.id else x for x in metadata]
+            else:
+                metadata.append(file)
+            save_list_of_files_to_csv(metadata, CSV_OUTPUT_FILE)
             return response
         else:
             message = "Unable to log into site"
@@ -242,17 +258,34 @@ def download_single_audio_file(file_id, metadata_only=False):
             }
 
 
-def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False):
+def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False, redownload=False):
     with create_site_session() as session:
         if session is not None:
             # assuming that worked:
             # start looping through every web page and see how it goes!
+            metadata = csv_to_audiofiledata_list(CSV_OUTPUT_FILE)
+            metadata_ids = [x.id for x in metadata]
             files = []
             for file_id in range(int(initial_file_id), int(last_file_id) + 1):
-                response = attempt_file_download(session, file_id, metadata_only=metadata_only)
-                files.append(response)
-
-            save_list_of_files_to_csv(files)
+                current_file = next(iter([x for x in metadata if x.id == file_id]), None)
+                if redownload or (current_file is None) or (current_file is not None and not current_file.download_successful):
+                    try:
+                        response = attempt_file_download(session, file_id, metadata_only=metadata_only,
+                                                         redownload=redownload)
+                        files.append(response)
+                        # not the most efficient, but I really want to make sure that data isn't lost if this loop breaks
+                        file = response['audio_file_data']
+                        if file.id in metadata_ids:
+                            metadata = [file if file.id == x.id else x for x in metadata]
+                        else:
+                            metadata.append(file)
+                    except:
+                        # TODO: Log these errors somewhere
+                        pass
+                # attempt to save csv every loop to always have updated data.
+                save_list_of_files_to_csv(metadata, CSV_OUTPUT_FILE)
+                # wait one second so as not to overload their poor servers
+                time.sleep(1)
 
             return files
 
@@ -269,47 +302,59 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
 
 def download_all_files(metadata_only=False):
     # check for metadata.
-
+    metadata = csv_to_audiofiledata_list(CSV_OUTPUT_FILE)
     # if no metadata, create it?
 
     # then download all files?
-
     pass
 
 
-def csv_to_audiofiledata_list():
+def csv_to_audiofiledata_list(csv_filepath):
 
-    # create dataframe from csv
-    dataframe = pd.read(CSV_OUTPUT_FILE)
+    files = []
 
-    # dataframe to audiofiles
-    files = [(AudioFileData(id=row.id,
-                            title=row.title,
-                            album=row.album,
-                            album_artist=row.album_artist,
-                            artist=row.artist,
-                            genre=row.genre,
-                            description=row.description,
-                            track_num=row.track_num,
-                            total_tracks=row.total_tracks,
-                            speaker_image_url=row.speaker_image_url,
-                            album_image_url=row.album_image_url,
-                            details_url=row.details_url,
-                            download_url=row.download_url,
-                            comment=row.comment,
-                            year=row.year,
-                            download_successful=row.download_successful,
-                            last_download_attempt=row.last_download_attempt)) for i, row in dataframe.iterrows()]
+    try:
+        # create dataframe from csv
+        dataframe = pd.read_csv(csv_filepath)
+
+        # dataframe to audiofiles
+        files = [(AudioFileData(id=row.id,
+                                title=row.title,
+                                album=row.album,
+                                album_artist=row.album_artist,
+                                artist=row.artist,
+                                genre=row.genre,
+                                description=row.description,
+                                track_num=row.track_num,
+                                total_tracks=row.total_tracks,
+                                speaker_image_url=row.speaker_image_url,
+                                album_image_url=row.album_image_url,
+                                details_url=row.details_url,
+                                download_url=row.download_url,
+                                comment=row.comment,
+                                year=row.year,
+                                download_successful=row.download_successful,
+                                last_download_attempt=row.last_download_attempt)) for i, row in dataframe.iterrows()]
+    except:
+        # TODO: Log something
+        pass
+
     return files
 
 
-def save_list_of_files_to_csv(files):
+def save_list_of_files_to_csv(files, output_file_path):
     if len(files) > 0:
-        # get files from input
-        files = [x['audio_file_data'] for x in files]
-        # get class attributes
-        fields = vars(files[0]).keys()
-        # create dataframe from list of audiofiles and fields
-        dataframe = pd.DataFrame([[getattr(i, j) for j in fields] for i in files], columns=fields)
-        # save dataframe to csv
-        dataframe.to_csv(CSV_OUTPUT_FILE, index=False)
+        try:
+            # get files from input
+            # files = [x['audio_file_data'] for x in files]
+            # sort files
+            files = sorted(files, key=lambda e: int(e.id))
+            # get class attributes
+            fields = vars(files[0]).keys()
+            # create dataframe from list of audiofiles and fields
+            dataframe = pd.DataFrame([[getattr(i, j) for j in fields] for i in files], columns=fields)
+            # save dataframe to csv
+            dataframe.to_csv(output_file_path, index=False)
+        except:
+            # TODO: log these errors somewhere
+            pass

@@ -18,7 +18,11 @@
             <label for="single-file-id">File Id:</label>
             <input type="text" id="single-file-id">
         </td>
+        <td>
+            <label for="cb-redownload-file">Redownload files</label><input type="checkbox" id="cb-redownload-file">
+        </td>
         <td><button id="button-single-file">Download Single File</button></td>
+        <td><button id="button-single-file-metadata">Download Single File Metadata</button></td>
     </tr>
     <tr>
         <td><div id="single-file-response"></div></td>
@@ -36,7 +40,13 @@
             <label for="file-range-last-id">Last File Id:</label><input type="text" id="file-range-last-id">
         </td>
         <td>
+            <label for="cb-redownload-range">Redownload files</label><input type="checkbox" id="cb-redownload-range">
+        </td>
+        <td>
             <button id="button-file-range">Download Files</button>
+        </td>
+        <td>
+            <button id="button-file-range-metadata">Download Metadata</button>
         </td>
     </tr>
     <tr>
@@ -52,6 +62,10 @@
     <tr>
         <td>
             <button id="button-all-files">Download All Files</button>
+        </td>
+
+        <td>
+            <button id="button-all-files-metadata">Download All Metadata</button>
         </td>
     </tr>
     <tr>
