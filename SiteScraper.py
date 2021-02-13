@@ -70,7 +70,6 @@ def audio_file_to_dict(file):
                        'last_download_attempt': file.last_download_attempt}
     return audio_file_dict
 
-
 def get_file_data_from_page(session, details_url, download_url):
     open_details_page = session.get(details_url)
     details_soup = BeautifulSoup(open_details_page.content, 'lxml')
@@ -81,13 +80,7 @@ def get_file_data_from_page(session, details_url, download_url):
     audio_file_data = AudioFileData()
 
     # Title = Title
-    audio_file_data.title = clean_html_contents(content.h1) if content.h1 else ''
-
-    if audio_file_data.title == 'Item Details':
-        # Error Message - typically to indicate that there is no file at that ID
-        warning = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_Notification1_panelNotification'))
-        if warning != '':
-            audio_file_data.title = warning
+    audio_file_data.title = details_soup.find("meta", property="og:title")
 
     # Album = Organization
     audio_file_data.album = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
@@ -100,7 +93,10 @@ def get_file_data_from_page(session, details_url, download_url):
     # Comment = Description + Speaker
     # page_data['comment'] = content.find(id='').text
     # Description
-    audio_file_data.description = content.p.text if content.p else ''
+    for tag in details_soup.find_all("meta"):
+        if tag.get("name", None) == "description":
+            audio_file_data.description = tag["content"]
+            break
     # Track  # = Series (have to parse because it's formatted as Part x of a y part series.
     # You can see how I did it in the spreadsheet)
     raw_track_info = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
