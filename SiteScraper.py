@@ -70,6 +70,7 @@ def audio_file_to_dict(file):
                        'last_download_attempt': file.last_download_attempt}
     return audio_file_dict
 
+
 def get_file_data_from_page(session, details_url, download_url):
     open_details_page = session.get(details_url)
     details_soup = BeautifulSoup(open_details_page.content, 'lxml')
@@ -80,16 +81,56 @@ def get_file_data_from_page(session, details_url, download_url):
     audio_file_data = AudioFileData()
 
     # Title = Title
-    audio_file_data.title = details_soup.find("meta", property="og:title")
+    audio_file_data.title = details_soup.find("meta", property="og:title")["content"]
 
-    # Album = Organization
-    audio_file_data.album = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
-    # Album Artist = Group/Ministry
-    audio_file_data.album_artist = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelProductGroups'))
-    # Artist = Speaker
-    audio_file_data.artist = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypSpeaker'))
+    # Album Artist = Organization
+    organization = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
+    audio_file_data.album_artist = organization if organization else ''
+
     # Genre = Topic
-    audio_file_data.genre = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypTopic'))
+    topic = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypTopic'))
+    audio_file_data.genre = topic if topic else ''
+
+    # Artist = Speaker
+    speaker = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypSpeaker'))
+    audio_file_data.artist = speaker if speaker else ''
+
+    #Album
+    # if it's part of a series
+    if content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'):
+        # and has one or more related groups,
+        groups_section = content.find(id='ctl00_ContentPlaceHolder_panelProductGroups')
+        if groups_section:
+            # use the first related group
+            table = groups_section.find("table")
+            rows = table.find_all("tr")
+            for row in rows:
+                columns = row.find_all("td")
+                for column in columns:
+                    links = column.find_all("a")
+                    for link in links:
+                        audio_file_data.album = link.text
+                        if len(audio_file_data.album) > 0:
+                            break
+                    if len(audio_file_data.album) > 0:
+                        break
+                if len(audio_file_data.album) > 0:
+                    break
+        # no related groups,
+        elif not groups_section:
+            # use Organization: Topic
+            if organization:
+                audio_file_data.album = "{}: {}".format(organization, topic)
+            else:
+                # If it's part of a series and has no related groups and no organization, Speaker: Topic
+                audio_file_data.album = "{}: {}".format(speaker, topic)
+    # If it's NOT part of a series, use WordMP3: Organization
+    else:
+        if organization:
+            audio_file_data.album = "WordMP3: {}".format(organization)
+        else:
+            audio_file_data.album = "WordMP3: {}".format(topic)
+
     # Comment = Description + Speaker
     # page_data['comment'] = content.find(id='').text
     # Description
@@ -97,6 +138,7 @@ def get_file_data_from_page(session, details_url, download_url):
         if tag.get("name", None) == "description":
             audio_file_data.description = tag["content"]
             break
+
     # Track  # = Series (have to parse because it's formatted as Part x of a y part series.
     # You can see how I did it in the spreadsheet)
     raw_track_info = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
