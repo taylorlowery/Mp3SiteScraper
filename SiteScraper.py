@@ -87,9 +87,17 @@ def get_file_data_from_page(session, details_url, download_url):
     organization = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
     audio_file_data.album_artist = organization if organization else ''
 
-    # Genre = Topic
+    # Genre = Type / Topic
+    type = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelItemType')).replace("Type:", "")
     topic = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypTopic'))
-    audio_file_data.genre = topic if topic else ''
+    if type and topic:
+        audio_file_data.genre = '{}: {}'.format(type, topic)
+    elif type:
+        audio_file_data.genre = type
+    elif topic:
+        audio_file_data.genre = topic
+    else:
+        audio_file_data.genre = ''
 
     # Artist = Speaker
     speaker = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypSpeaker'))
@@ -139,6 +147,14 @@ def get_file_data_from_page(session, details_url, download_url):
             audio_file_data.description = tag["content"]
             break
 
+    # year
+    date = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelDate'))
+    if date:
+        date = date.replace("Date:", "").strip()
+        try:
+            audio_file_data.year = datetime.datetime.strptime(date, '%m/%d/%Y').year
+        except:
+            audio_file_data.year = date
     # Track  # = Series (have to parse because it's formatted as Part x of a y part series.
     # You can see how I did it in the spreadsheet)
     raw_track_info = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
@@ -190,6 +206,8 @@ def download_file_from_page(session, audio_file_data):
         original_track = audiofile.tag.track_num
         original_year = audiofile.tag.getBestDate()
 
+        original_comments = audiofile.tag.comments
+
         # cover image
         if audio_file_data.album_image_url != "":
             album_image = Image.open(urllib.request.urlopen(audio_file_data.album_image_url))
@@ -209,11 +227,18 @@ def download_file_from_page(session, audio_file_data):
         # add appropriate metadata to audio file
         # TODO: full comparison of original metadata and metadata from page. Only use page if blank?
         # TODO: add ALL relevant data from audiofile.tag to audio_file_data
-        if audiofile.tag.artist is None or audiofile.tag.artist == "":
+        audiofile.tag.album = audio_file_data.album
+
+        if audio_file_data.artist:
             audiofile.tag.artist = audio_file_data.artist
-        if audiofile.tag.album_artist is None or audiofile.tag.album_artist == "":
-            audiofile.tag.album_artist = audio_file_data.album_artist
-        audio_file_data.year = original_year
+
+        if audio_file_data.album_artist:
+            audio_file_data.album_artist = audio_file_data.album_artist
+
+        if original_year:
+            audiofile.tag.year = original_year
+        elif audio_file_data.year:
+            audiofile.tag.year = audio_file_data.year
 
         # attach download and details links
         audiofile.tag.audio_file_url = audio_file_data.download_url
@@ -221,6 +246,25 @@ def download_file_from_page(session, audio_file_data):
 
         # definitely use page_data genre
         audiofile.tag.genre = audio_file_data.genre
+
+        try:
+
+            comments = u"Original metadata:\n"
+            comments += u"Title: {}\n".format(original_title)
+            comments += u"Album: {}\n".format(original_album)
+            comments += u"Artist: {}\n".format(original_artist)
+            comments += u"Album Artist: {}\n".format(original_album_artist)
+            comments += u"Genre: {}\n".format(original_genre)
+            comments += u"Track: {}\n".format(original_track)
+            comments += u"Year: {}\n".format(original_year)
+            comments += u"Original Comments:\n"
+
+            for comment in original_comments:
+                comments += comment.text
+
+            audiofile.tag.comments.set(comments)
+        except:
+            message = "couldn't set comments"
 
         try:
             # finally save all metadata to mp3 file
@@ -248,7 +292,7 @@ def attempt_file_download(session, file_id, metadata_only=False, redownload=Fals
     message = '{} - {}'.format(audio_file_data.id, audio_file_data.title)
 
     # only download audio file if parameter says to
-    if not metadata_only and not redownload:
+    if not metadata_only or redownload:
         message, audio_file_data = download_file_from_page(session, audio_file_data)
 
     print(message)
