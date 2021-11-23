@@ -7,4 +7,4 @@ COPY requirements.txt requirements.txt
 RUN pip install --upgrade -r requirements.txt
 EXPOSE 1337
 COPY . .
-CMD [ "python3", "app.py" ]
+CMD [ "flask", "run", "--host=0.0.0.0" ]

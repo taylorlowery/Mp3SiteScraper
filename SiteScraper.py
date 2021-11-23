@@ -76,7 +76,7 @@ def get_file_data_from_page(session, details_url, download_url):
     details_soup = BeautifulSoup(open_details_page.content, 'lxml')
 
     # get metadata from page
-    content = details_soup.find('td', class_='content')
+    content = details_soup.find('div', class_='content')
 
     audio_file_data = AudioFileData()
 
