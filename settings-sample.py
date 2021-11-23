@@ -8,3 +8,6 @@ STORAGE_PATH = ''
 
 # url of the site from which we are downloading files - ex, 'https://www.#######.com'
 SITE_URL = ''
+
+# output path for CSV of download results
+CSV_OUTPUT_PATH = ''
