@@ -80,4 +80,4 @@ api.add_resource(FileMetaDataRange, '/filemetadatarange')
 api.add_resource(AllMetaData, '/allmetadata')
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", debug=True)
