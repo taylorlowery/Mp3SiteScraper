@@ -1,31 +1,38 @@
 import SiteScraper
 
-from flask import Flask, render_template, jsonify, request
+from dictor import dictor
+from flask import Flask, render_template, request
 from flask_restful import Api, Resource
 
 app = Flask(__name__, template_folder='templates')
 api = Api(app)
+
+_SINGLE_FILE_HTML_TEMPLATE = 'singlefileconfirmation.html'
+_MULTI_FILE_HTML_TEMPLATE = 'multiplefilesconfirmation.html'
 
 
 # download metadata and/or file
 class SingleFile(Resource):
     def post(self):
         posted_data = request.json
-        file_id = posted_data['file_id']
-        metadata_only = posted_data['metadata_only']
-        redownload = posted_data['redownload']
+        file_id = dictor(posted_data, 'file_id')
+        if not file_id or len(file_id) == 0: # check for file_id
+            return render_template(_SINGLE_FILE_HTML_TEMPLATE, message="Please provide a file id")
+        metadata_only = dictor(posted_data, 'metadata_only')
         file_data = SiteScraper.download_single_audio_file(file_id, metadata_only=metadata_only)
-        message = file_data['message']
-        return render_template('singlefileconfirmation.html', message=message)
+        message = dictor(file_data, 'message')
+        return render_template(_SINGLE_FILE_HTML_TEMPLATE, message=message)
 
 
 # download metadata
 class SingleFileMetaData(Resource):
     def post(self):
         posted_data = request.json
-        file_id = posted_data['file_id']
+        file_id = dictor(posted_data, 'file_id')
+        if not file_id or len(file_id) == 0: # check for file_id
+            return render_template(_SINGLE_FILE_HTML_TEMPLATE, message="Please provide a file id")
         file_data = SiteScraper.download_single_audio_file(file_id, metadata_only=True)
-        message = file_data['message']
+        message = dictor(file_data, 'message')
         return render_template('singlefileconfirmation.html', message=message)
 
 
@@ -33,20 +40,24 @@ class SingleFileMetaData(Resource):
 class FileRange(Resource):
     def post(self):
         posted_data = request.json
-        first_file_id = posted_data['first_file_id']
-        last_file_id = posted_data['last_file_id']
-        metadata_only = posted_data['metadata_only']
-        redownload = posted_data['redownload']
+        first_file_id = dictor(posted_data, 'first_file_id')
+        last_file_id = dictor(posted_data, 'last_file_id')
+        if not first_file_id or not last_file_id or len(first_file_id) == 0 or len(last_file_id) == 0: # check for file_id
+            return render_template(_MULTI_FILE_HTML_TEMPLATE, files=[], error_message="Please provide first and last file ids")
+        metadata_only = dictor(posted_data, 'metadata_only')
+        redownload = True # dictor(posted_data, 'redownload')
         files = SiteScraper.download_audio_file_range(first_file_id, last_file_id, metadata_only=metadata_only, redownload=redownload)
-        return render_template('multiplefilesconfirmation.html', files=files)
+        return render_template(_MULTI_FILE_HTML_TEMPLATE, files=files, error_message="")
 
 
 # download metadata for range of files
 class FileMetaDataRange(Resource):
     def post(self):
         posted_data = request.json
-        first_file_id = posted_data['first_file_id']
-        last_file_id = posted_data['last_file_id']
+        first_file_id = dictor(posted_data, 'first_file_id')
+        last_file_id = dictor(posted_data, 'last_file_id')
+        if not first_file_id or not last_file_id or len(first_file_id) == 0 or len(last_file_id) == 0: # check for file_id
+            return render_template(_MULTI_FILE_HTML_TEMPLATE, error_message="Please provide first and last file ids")
         files = SiteScraper.download_audio_file_range(first_file_id, last_file_id, metadata_only=True)
         return render_template('multiplefilesconfirmation.html', files=files)
 

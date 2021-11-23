@@ -62,7 +62,7 @@ $("#button-all-files").click(function(){
 $("#button-single-file-metadata").click(function(){
     jsonData = {
         "file_id": $("#single-file-id").val(),
-            "metadata_only": $("#cb-redownload-file").is(":checked")
+            "metadata_only": true
     };
    $.ajax({
       url: "/singlefile",

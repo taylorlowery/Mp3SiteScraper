@@ -292,7 +292,7 @@ def attempt_file_download(session, file_id, metadata_only=False, redownload=Fals
     message = '{} - {}'.format(audio_file_data.id, audio_file_data.title)
 
     # only download audio file if parameter says to
-    if not metadata_only or redownload:
+    if not metadata_only: # or redownload:
         message, audio_file_data = download_file_from_page(session, audio_file_data)
 
     print(message)
