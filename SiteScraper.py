@@ -179,7 +179,9 @@ def download_file_from_page(session, audio_file_data):
     audio_file_data.last_download_attempt = datetime.datetime.now()
 
     # generate name for this mp3 file
-    filename = '{0}_{1}.mp3'.format(audio_file_data.id, audio_file_data.title.replace(' ', '_'))
+    file_id = str(audio_file_data.id).rjust(7, '0')
+    file_title = audio_file_data.title.replace(' ', '_')
+    filename = '{0}_{1}.mp3'.format(file_id, file_title)
     full_file_path = STORAGE_PATH + filename
 
     message = ''
