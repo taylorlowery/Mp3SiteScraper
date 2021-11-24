@@ -74,6 +74,7 @@ def get_file_data_from_page(session, details_url, download_url):
 
     # Title = Title
     audio_file_data.title = details_soup.find("meta", property="og:title")["content"]
+    audio_file_data.title = audio_file_data.title.replace(" - WordMp3.com", "")
 
     # Album Artist = Organization
     organization = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
