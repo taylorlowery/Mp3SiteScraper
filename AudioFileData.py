@@ -22,3 +22,4 @@ class AudioFileData:
     year: int = None
     download_successful: bool = False
     last_download_attempt: datetime = datetime.now()
+    has_outline: bool = False
