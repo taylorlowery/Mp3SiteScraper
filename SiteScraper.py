@@ -193,8 +193,6 @@ def download_file_from_page(session, audio_file_data):
             f.write(file.content)
 
         # get original file metadata
-        # TODO: Check metatada from page against mp3 metadata & overwrite either where necessary. Prefer mp3 data
-        # TODO: Save all original data as audiofile tag comment
         audiofile = eyed3.load(full_file_path)
         original_title = audiofile.tag.title
         original_album = audiofile.tag.album
@@ -211,7 +209,7 @@ def download_file_from_page(session, audio_file_data):
             try:
                 album_img_resp = requests.get(audio_file_data.album_image_url)
                 album_img_bytes = album_img_resp.content
-                audiofile.tag.images.set(3, album_img_bytes, "image/jpeg", u"Description")
+                audiofile.tag.images.set(3, album_img_bytes, "image/jpeg")
             except Exception as e:
                 print(f"Error downloading album cover image from { audio_file_data.album_image_url }: \n{ e }")
 
@@ -220,7 +218,7 @@ def download_file_from_page(session, audio_file_data):
             try:
                 speaker_img_resp = requests.get(audio_file_data.speaker_image_url)
                 speaker_img_bytes = speaker_img_resp.content
-                audiofile.tag.images.set(8, speaker_img_bytes, "image/jpeg", u"Description")
+                audiofile.tag.images.set(8, speaker_img_bytes, "image/jpeg")
             except Exception as e:
                 print(f"Error downloading speaker image from { audio_file_data.speaker_image_url }: \n{ e }")
 
