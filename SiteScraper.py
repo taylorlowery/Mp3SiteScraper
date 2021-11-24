@@ -4,6 +4,7 @@ import eyed3
 import pandas as pd
 import time
 import datetime
+import dataclasses
 
 import credentials
 import settings
@@ -23,7 +24,22 @@ PASSWORD = credentials.PASSWORD
 def clean_html_contents(html_element):
     if html_element is None:
         return ''
-    return html_element.text.replace('\r', '').replace('\n', '').strip()
+    return remove_extra_whitespace(html_element.text)
+
+
+def remove_extra_whitespace(input: str) -> str:
+    return " ".join(input.split())
+
+
+def clean_dataclass_string_fields(instance):
+    if not dataclasses.is_dataclass(instance):
+        return instance
+    for field in instance.__dataclass_fields__:
+        current_val = getattr(instance, field)
+        if isinstance(current_val, str):
+            clean_val = remove_extra_whitespace(current_val)
+            setattr(instance, field, clean_val)
+    return instance
 
 
 def generate_login_data(login_page):
@@ -45,27 +61,6 @@ def generate_login_data(login_page):
     login_data['ctl00$vcerevtxtEmailAddress_ClientState'] = None
     login_data['ctl00$wmetxtEmailAddress_ClientState'] = None
     return login_data
-
-
-def audio_file_to_dict(file):
-    audio_file_dict = {'id': file.id,
-                       'title': file.title,
-                       'album': file.album,
-                       'album_artist': file.album_artist,
-                       'artist': file.artist,
-                       'genre': file.genre,
-                       'description': file.description,
-                       'track_num': file.track_num,
-                       'total_tracks': file.total_tracks,
-                       'speaker_image_url': file.speaker_image_url,
-                       'album_image_url': file.album_image_url,
-                       'details_url': file.details_url,
-                       'download_url': file.download_url,
-                       'comment': file.comment,
-                       'year': file.year,
-                       'download_successful': file.download_successful,
-                       'last_download_attempt': file.last_download_attempt}
-    return audio_file_dict
 
 
 def get_file_data_from_page(session, details_url, download_url):
@@ -171,6 +166,9 @@ def get_file_data_from_page(session, details_url, download_url):
 
     audio_file_data.details_url = details_url
     audio_file_data.download_url = download_url
+
+    # clean all string fields
+    audio_file_data = clean_dataclass_string_fields(audio_file_data)
 
     return audio_file_data
 
