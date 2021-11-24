@@ -168,6 +168,9 @@ def get_file_data_from_page(session, details_url, download_url):
     audio_file_data.details_url = details_url
     audio_file_data.download_url = download_url
 
+    if content.find(id='ctl00_ContentPlaceHolder_hypPDFOutline2'):
+        audio_file_data.has_outline = True
+
     # clean all string fields
     audio_file_data = clean_dataclass_string_fields(audio_file_data)
 
@@ -181,8 +184,9 @@ def download_file_from_page(session, audio_file_data):
     # generate name for this mp3 file
     file_id = str(audio_file_data.id).rjust(7, '0')
     file_title = audio_file_data.title.replace(' ', '_')
-    filename = '{0}_{1}.mp3'.format(file_id, file_title)
-    full_file_path = STORAGE_PATH + filename
+    filename = '{0}_{1}'.format(file_id, file_title)
+    file_extension = 'mp3'
+    full_file_path = f"{STORAGE_PATH}{filename}.{file_extension}"
 
     message = ''
 
@@ -275,6 +279,19 @@ def download_file_from_page(session, audio_file_data):
         message = "Download of {0} successful!".format(filename)
     else:
         message = "Download of {0} failed".format(filename)
+
+    # download outline
+    if audio_file_data.has_outline:
+        try:
+            outline_dl_url = f"{SITE_URL}/files/outlines/{audio_file_data.id}.pdf"
+            outline_resp = requests.get(outline_dl_url)
+            if outline_resp.ok:
+                outline_filename = f"{ STORAGE_PATH }{ filename }_outline.pdf"
+                with open(outline_filename, "wb") as f:
+                    f.write(outline_resp.content)
+        except Exception as e:
+            print(f"Error downloading outline for file { audio_file_data.id }: { e }")
+
 
     return message, audio_file_data
 
