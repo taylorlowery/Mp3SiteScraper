@@ -1,9 +1,6 @@
 from bs4 import BeautifulSoup
 import requests
 import eyed3
-import urllib.request
-import io
-from PIL import Image
 import pandas as pd
 import time
 import datetime
@@ -210,19 +207,21 @@ def download_file_from_page(session, audio_file_data):
 
         # cover image
         if audio_file_data.album_image_url != "":
-            album_image = Image.open(urllib.request.urlopen(audio_file_data.album_image_url))
-            album_image_bytes = io.BytesIO()
-            album_image.save(album_image_bytes, format='PNG')
-            album_image_bytes = album_image_bytes.getvalue()
-            audiofile.tag.images.set(3, album_image_bytes, "image/jpeg", u"Description")
+            try:
+                album_img_resp = requests.get(audio_file_data.album_image_url)
+                album_img_bytes = album_img_resp.content
+                audiofile.tag.images.set(3, album_img_bytes, "image/jpeg", u"Description")
+            except Exception as e:
+                print(f"Error downloading album cover image from { audio_file_data.album_image_url }: \n{ e }")
 
         # artist image
         if audio_file_data.speaker_image_url != "":
-            artist_image = Image.open(urllib.request.urlopen(audio_file_data.speaker_image_url))
-            artist_image_bytes = io.BytesIO()
-            artist_image.save(artist_image_bytes, format='PNG')
-            artist_image_bytes = artist_image_bytes.getvalue()
-            audiofile.tag.images.set(8, artist_image_bytes, "image/jpeg", u"Description")
+            try:
+                speaker_img_resp = requests.get(audio_file_data.speaker_image_url)
+                speaker_img_bytes = speaker_img_resp.content
+                audiofile.tag.images.set(8, speaker_img_bytes, "image/jpeg", u"Description")
+            except Exception as e:
+                print(f"Error downloading speaker image from { audio_file_data.speaker_image_url }: \n{ e }")
 
         # add appropriate metadata to audio file
         # TODO: full comparison of original metadata and metadata from page. Only use page if blank?
