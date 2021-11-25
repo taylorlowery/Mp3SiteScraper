@@ -5,6 +5,7 @@ import pandas as pd
 import time
 import datetime
 import dataclasses
+from dictor import dictor
 
 import credentials
 import settings
@@ -181,17 +182,22 @@ def download_file_from_page(session, audio_file_data):
 
     audio_file_data.last_download_attempt = datetime.datetime.now()
 
+    # get initial filetype
+    r = session.head(audio_file_data.download_url, allow_redirects=True)
+    initial_filename = dictor(r.headers, "Content-Disposition").replace("attachment; filename=", "")
+    file_extension = initial_filename.split(".")[-1] if initial_filename else ".mp3"
+
     # generate name for this mp3 file
     file_id = str(audio_file_data.id).rjust(7, '0')
     file_title = audio_file_data.title.replace(' ', '_')
     filename = '{0}_{1}'.format(file_id, file_title)
-    file_extension = 'mp3'
     full_file_path = f"{STORAGE_PATH}{filename}.{file_extension}"
 
     message = ''
 
     # assuming that worked
     file = session.get(audio_file_data.download_url, allow_redirects=True)
+
     if file.status_code == 200:
         with open(full_file_path, 'wb') as f:
             f.write(file.content)
