@@ -23,3 +23,5 @@ class AudioFileData:
     download_successful: bool = False
     last_download_attempt: datetime = datetime.now()
     has_outline: bool = False
+    original_file_name: str = ''
+    downloaded_file_path: str = ''

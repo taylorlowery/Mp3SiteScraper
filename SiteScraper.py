@@ -347,8 +347,8 @@ def download_single_audio_file(file_id, metadata_only=False):
             metadata_ids = [x.id for x in metadata]
             response = attempt_file_download(session, file_id, metadata_only=metadata_only)
             file = response['audio_file_data']
-            if file.id in metadata_ids:
-                metadata = [file if file.id == x.id else x for x in metadata]
+            if int(file.id) in metadata_ids:
+                metadata = [file if int(file.id) == x.id else x for x in metadata]
             else:
                 metadata.append(file)
             save_list_of_files_to_csv(metadata, CSV_OUTPUT_FILE)
