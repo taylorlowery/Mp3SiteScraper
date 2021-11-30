@@ -184,8 +184,9 @@ def download_file_from_page(session, audio_file_data):
 
     # get initial filetype
     r = session.head(audio_file_data.download_url, allow_redirects=True)
-    initial_filename = dictor(r.headers, "Content-Disposition").replace("attachment; filename=", "")
-    file_extension = initial_filename.split(".")[-1] if initial_filename else ".mp3"
+    original_file_name = dictor(r.headers, "Content-Disposition").replace("attachment; filename=", "")
+    audio_file_data.original_file_name = original_file_name
+    file_extension = original_file_name.split(".")[-1] if original_file_name else ".mp3"
 
     # generate name for this mp3 file
     file_id = str(audio_file_data.id).rjust(7, '0')
@@ -371,6 +372,7 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
             files = []
             for file_id in range(int(initial_file_id), int(last_file_id) + 1):
                 current_file = next(iter([x for x in metadata if x.id == file_id]), None)
+                # download file if it is supposed to be redownloaded, or if it has not been downloaded ever, or previous file download was unsuccessful
                 if redownload or (current_file is None) or (current_file is not None and not current_file.download_successful):
                     try:
                         response = attempt_file_download(session, file_id, metadata_only=metadata_only,
@@ -421,26 +423,15 @@ def csv_to_audiofiledata_list(csv_filepath):
         dataframe = pd.read_csv(csv_filepath)
 
         # dataframe to audiofiles
-        files = [(AudioFileData(id=row.id,
-                                title=row.title,
-                                album=row.album,
-                                album_artist=row.album_artist,
-                                artist=row.artist,
-                                genre=row.genre,
-                                description=row.description,
-                                track_num=row.track_num,
-                                total_tracks=row.total_tracks,
-                                speaker_image_url=row.speaker_image_url,
-                                album_image_url=row.album_image_url,
-                                details_url=row.details_url,
-                                download_url=row.download_url,
-                                comment=row.comment,
-                                year=row.year,
-                                download_successful=row.download_successful,
-                                last_download_attempt=row.last_download_attempt)) for i, row in dataframe.iterrows()]
-    except:
-        # TODO: Log something
-        pass
+        files = []
+        for i, row in dataframe.iterrows():
+            a = AudioFileData()
+            for field in AudioFileData.__dataclass_fields__:
+                setattr(a, field, getattr(row, field))
+            files.append(a)
+
+    except Exception as ex:
+        print(f"Error reading metadata csv at { csv_filepath }: { ex }")
 
     return files
 
@@ -453,11 +444,10 @@ def save_list_of_files_to_csv(files, output_file_path):
             # sort files
             files = sorted(files, key=lambda e: int(e.id))
             # get class attributes
-            fields = vars(files[0]).keys()
+            fields = AudioFileData.__dataclass_fields__
             # create dataframe from list of audiofiles and fields
             dataframe = pd.DataFrame([[getattr(i, j) for j in fields] for i in files], columns=fields)
             # save dataframe to csv
             dataframe.to_csv(output_file_path, index=False)
-        except:
-            # TODO: log these errors somewhere
-            pass
+        except Exception as ex:
+            print(f"Error saving metadata file at { output_file_path }: { ex }")
