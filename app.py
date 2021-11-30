@@ -19,7 +19,8 @@ class SingleFile(Resource):
         if not file_id or len(file_id) == 0: # check for file_id
             return render_template(_SINGLE_FILE_HTML_TEMPLATE, message="Please provide a file id")
         metadata_only = dictor(posted_data, 'metadata_only')
-        file_data = SiteScraper.download_single_audio_file(file_id, metadata_only=metadata_only)
+        redownload = dictor(posted_data, 'redownload')
+        file_data = SiteScraper.download_single_audio_file(file_id, metadata_only=metadata_only, redownload=redownload)
         message = dictor(file_data, 'message')
         return render_template(_SINGLE_FILE_HTML_TEMPLATE, message=message)
 
@@ -45,7 +46,7 @@ class FileRange(Resource):
         if not first_file_id or not last_file_id or len(first_file_id) == 0 or len(last_file_id) == 0: # check for file_id
             return render_template(_MULTI_FILE_HTML_TEMPLATE, files=[], error_message="Please provide first and last file ids")
         metadata_only = dictor(posted_data, 'metadata_only')
-        redownload = True # dictor(posted_data, 'redownload')
+        redownload = dictor(posted_data, 'redownload')
         files = SiteScraper.download_audio_file_range(first_file_id, last_file_id, metadata_only=metadata_only, redownload=redownload)
         return render_template(_MULTI_FILE_HTML_TEMPLATE, files=files, error_message="")
 

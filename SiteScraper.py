@@ -1,3 +1,5 @@
+import os.path
+
 from bs4 import BeautifulSoup
 import requests
 import eyed3
@@ -236,7 +238,18 @@ def download_file_from_page(session, audio_file_data):
         # add appropriate metadata to audio file
         # TODO: full comparison of original metadata and metadata from page. Only use page if blank?
         # TODO: add ALL relevant data from audiofile.tag to audio_file_data
-        audiofile.tag.album = audio_file_data.album
+
+        # use original mp3 title if present
+        if original_title and len(original_title) > 0:
+            audiofile.tag.title = original_title
+            audio_file_data.title = original_title
+        else:
+            audiofile.tag.title = audio_file_data.title
+
+        if original_album and len(original_album) > 0:
+            audio_file_data.album = original_album
+        else:
+            audiofile.tag.album = audio_file_data.album
 
         if audio_file_data.artist:
             audiofile.tag.artist = audio_file_data.artist
@@ -272,16 +285,30 @@ def download_file_from_page(session, audio_file_data):
                 comments += comment.text
 
             audiofile.tag.comments.set(comments)
-        except:
-            message = "couldn't set comments"
+        except Exception as ex:
+            message = f"Couldn't set mp3 comments: { ex }"
 
         try:
             # finally save all metadata to mp3 file
             audiofile.tag.save()
             # confirm download on metadata class
             audio_file_data.download_successful = True
-        except:
-            message = "Download of {0} failed".format(filename)
+            audio_file_data.downloaded_file_path = full_file_path
+        except Exception as ex:
+            message = "Download of {0} failed: {1}".format(filename, ex)
+
+        # create directory structure for album
+        try:
+            # f"{STORAGE_PATH}{filename}.{file_extension}"
+            filename = f"{ file_id }_{ audio_file_data.title }.{ file_extension }"
+            album_file_path = os.path.join(STORAGE_PATH, audio_file_data.album.replace(":", ""))
+            if not os.path.isdir(album_file_path):
+                os.mkdir(album_file_path)
+            file_path_with_album_dir = os.path.join(album_file_path, filename)
+            os.replace(full_file_path, file_path_with_album_dir)
+            audio_file_data.downloaded_file_path = file_path_with_album_dir
+        except Exception as ex:
+            print(f"Unable to move { full_file_path } to album directory after download: { ex }")
 
         message = "Download of {0} successful!".format(filename)
     else:
@@ -299,11 +326,10 @@ def download_file_from_page(session, audio_file_data):
         except Exception as e:
             print(f"Error downloading outline for file { audio_file_data.id }: { e }")
 
-
     return message, audio_file_data
 
 
-def attempt_file_download(session, file_id, metadata_only=False, redownload=False):
+def attempt_file_download(session, file_id, metadata_only=False, redownload: bool = False):
     # urls for details web page and download link
     details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
     dl_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
@@ -314,7 +340,7 @@ def attempt_file_download(session, file_id, metadata_only=False, redownload=Fals
     message = '{} - {}'.format(audio_file_data.id, audio_file_data.title)
 
     # only download audio file if parameter says to
-    if not metadata_only: # or redownload:
+    if not metadata_only or redownload:
         message, audio_file_data = download_file_from_page(session, audio_file_data)
 
     print(message)
@@ -341,12 +367,12 @@ def create_site_session():
             return None
 
 
-def download_single_audio_file(file_id, metadata_only=False):
+def download_single_audio_file(file_id, metadata_only=False, redownload: bool = False):
     with create_site_session() as session:
         if session is not None:
             metadata = csv_to_audiofiledata_list(CSV_OUTPUT_FILE)
             metadata_ids = [x.id for x in metadata]
-            response = attempt_file_download(session, file_id, metadata_only=metadata_only)
+            response = attempt_file_download(session, file_id, metadata_only=metadata_only, redownload=redownload)
             file = response['audio_file_data']
             if int(file.id) in metadata_ids:
                 metadata = [file if int(file.id) == x.id else x for x in metadata]
@@ -375,8 +401,7 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
                 # download file if it is supposed to be redownloaded, or if it has not been downloaded ever, or previous file download was unsuccessful
                 if redownload or (current_file is None) or (current_file is not None and not current_file.download_successful):
                     try:
-                        response = attempt_file_download(session, file_id, metadata_only=metadata_only,
-                                                         redownload=redownload)
+                        response = attempt_file_download(session, file_id, metadata_only=metadata_only, redownload=redownload)
                         files.append(response)
                         # not the most efficient, but I really want to make sure that data isn't lost if this loop breaks
                         file = response['audio_file_data']
@@ -384,9 +409,8 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
                             metadata = [file if file.id == x.id else x for x in metadata]
                         else:
                             metadata.append(file)
-                    except:
-                        # TODO: Log these errors somewhere
-                        pass
+                    except Exception as ex:
+                        print(f"Error downloading file { file_id }: { ex }")
                 # attempt to save csv every loop to always have updated data.
                 save_list_of_files_to_csv(metadata, CSV_OUTPUT_FILE)
                 # wait one second so as not to overload their poor servers
