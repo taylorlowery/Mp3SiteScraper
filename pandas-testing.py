@@ -1,30 +1,30 @@
 import pandas as pd
 
-from AudioFileData import AudioFileData
+from MetadataRow import MetadataRow
 
 df = pd.read_csv('files.csv')
 
 # dataframe to audiofiles
-listOfFiles = [(AudioFileData(id=row.id,
-                              title=row.title,
-                              album=row.album,
-                              album_artist=row.album_artist,
-                              artist=row.artist,
-                              genre=row.genre,
-                              description=row.description,
-                              track_num=row.track_num,
-                              total_tracks=row.total_tracks,
-                              speaker_image_url=row.speaker_image_url,
-                              album_image_url=row.album_image_url,
-                              details_url=row.details_url,
-                              download_url=row.download_url,
-                              comment=row.comment,
-                              year=row.year,
-                              download_successful=row.download_successful,
-                              last_download_attempt=row.last_download_attempt)) for i, row in df.iterrows()]
+listOfFiles = [(MetadataRow(id=row.site_ID,
+                            title=row.site_Title,
+                            album=row.file_Album,
+                            album_artist=row.file_Album_Artist,
+                            artist=row.file_Artist,
+                            genre=row.file_Genre,
+                            description=row.site_Description,
+                            track_num=row.file_Track,
+                            total_tracks=row.total_tracks,
+                            speaker_image_url=row.site_speaker_image_url,
+                            album_image_url=row.album_image_url,
+                            details_url=row.details_url,
+                            download_url=row.site_download_url,
+                            comment=row.file_Comment,
+                            year=row.file_Year,
+                            download_successful=row.file_download_success,
+                            last_download_attempt=row.file_download_last_attempt)) for i, row in df.iterrows()]
 
 for file in listOfFiles:
-    file.id = 80085
+    file.site_ID = 80085
 
 # audiofiles to dataframe
 otherfields = dir(listOfFiles[0])
