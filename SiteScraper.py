@@ -171,6 +171,8 @@ def get_file_data_from_page(session, details_url, download_url):
             audio_file_data.site_Date = datetime.datetime.strptime(date, '%m/%d/%Y').year
         except:
             audio_file_data.site_Date = date
+    else:
+        audio_file_data.site_Date = ''
     # Track  # = Series (have to parse because it's formatted as Part x of a y part series.
     # You can see how I did it in the spreadsheet)
     raw_track_info = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
