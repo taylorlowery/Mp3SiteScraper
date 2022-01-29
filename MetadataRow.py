@@ -46,7 +46,7 @@ class FileData:
     file_Album_Artist: str = ''
     file_Artist: str = ''
     file_Genre: str = ''
-    file_Track: str = ''
+    file_Track: int = None
     file_Comment: str = ''
     file_Year: str = ''
     file_Composer: str = ''
