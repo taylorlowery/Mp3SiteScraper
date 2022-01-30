@@ -12,7 +12,7 @@ from dataclasses import fields
 import credentials
 import settings
 
-from MetadataRow import MetadataRow, FileData, MiscellaneousMetadata
+from MetadataRow import MetadataRow, FileData, MiscellaneousMetadata, SiteMetadata
 from typing import List
 
 # use constants from settings page
@@ -218,7 +218,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
 
     # generate name for this mp3 file
     file_id = str(audio_file_data.site_ID).rjust(7, '0')
-    file_title = audio_file_data.site_Title.replace(' ', '_')
+    file_title = original_file_name.replace(' ', '_')
     audio_file_data.file_filename_current = '{0}_{1}'.format(file_id, file_title)
     full_file_path = f"{STORAGE_PATH}{audio_file_data.file_filename_current}.{audio_file_data.file_ext}"
 
@@ -496,7 +496,7 @@ def save_list_of_files_to_csv(files: List[MetadataRow], output_file_path):
             files = sorted(files, key=lambda e: int(e.site_ID))
             # get class attributes
             metadata_fields = []
-            metadata_fields.extend([f.name for f in fields(MetadataRow)])
+            metadata_fields.extend([f.name for f in fields(SiteMetadata)])
             metadata_fields.extend([f.name for f in fields(FileData)])
             metadata_fields.extend([f.name for f in fields(MiscellaneousMetadata)])
 
