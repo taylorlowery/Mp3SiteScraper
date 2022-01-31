@@ -1,28 +1,20 @@
-import os.path
-
-from bs4 import BeautifulSoup
-import requests
-import eyed3
-import pandas as pd
-import time
-import datetime
 import dataclasses
-from dictor import dictor
+import datetime
+import os.path
+import time
 from dataclasses import fields
-import credentials
-import settings
-
-from MetadataRow import MetadataRow, FileData, MiscellaneousMetadata, SiteMetadata
 from typing import List
 
-# use constants from settings page
-STORAGE_PATH = settings.STORAGE_PATH
-SITE_URL = settings.SITE_URL
-CSV_OUTPUT_FILE = settings.CSV_OUTPUT_PATH
+import eyed3
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+from dictor import dictor
 
-# use credentials from credentials page
-USERNAME = credentials.USERNAME
-PASSWORD = credentials.PASSWORD
+from MetadataRow import MetadataRow, FileData, MiscellaneousMetadata, SiteMetadata
+from credentials import USERNAME, PASSWORD
+from settings import CSV_OUTPUT_PATH, SITE_URL, STORAGE_PATH
+from utils import Utilities
 
 
 def clean_html_contents(html_element):
@@ -79,6 +71,7 @@ def get_file_data_from_page(session, details_url, download_url):
     # Title = Title
     audio_file_data.site_Title = details_soup.find("meta", property="og:title")["content"]
     audio_file_data.site_Title = audio_file_data.site_Title.replace(" - WordMp3.com", "")
+    audio_file_data.site_title_formatted = Utilities.format_site_title(audio_file_data.site_Title)
 
     # Album Artist = Organization
     organization = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
@@ -112,6 +105,8 @@ def get_file_data_from_page(session, details_url, download_url):
     speaker_html = content.find(id='ctl00_ContentPlaceHolder_hypSpeaker')
     speaker = clean_html_contents(speaker_html)
     audio_file_data.site_Speaker = speaker if speaker else ""
+    if speaker:
+        audio_file_data.site_speaker_formatted = Utilities.format_site_speaker_name(audio_file_data.site_Speaker)
     speaker_url = speaker_html["href"]
     if speaker_url:
         audio_file_data.site_speaker_url = f"{ SITE_URL }{speaker_url}"
@@ -126,9 +121,8 @@ def get_file_data_from_page(session, details_url, download_url):
     audio_file_data.site_SeriesNumber = series_number if series_number else ""
     if series_number:
 
-        # format parts number
-        parts = series_number.split()
-        audio_file_data.site_series_number_formatted = f"{parts[1]}/{parts[4]}"
+        # format site series number
+        audio_file_data.site_series_number_formatted = Utilities.format_site_series_number(audio_file_data.site_SeriesNumber)
 
         # and has one or more related groups,
         groups_section = content.find(id='ctl00_ContentPlaceHolder_panelProductGroups')
@@ -405,7 +399,7 @@ def create_site_session():
 def download_single_audio_file(file_id, metadata_only=False, redownload: bool = False):
     with create_site_session() as session:
         if session is not None:
-            metadata = csv_to_audiofiledata_list(CSV_OUTPUT_FILE)
+            metadata = csv_to_audiofiledata_list(CSV_OUTPUT_PATH)
             metadata_ids = [x.site_ID for x in metadata]
             response = attempt_file_download(session, file_id, metadata_only=metadata_only, redownload=redownload)
             file = response['audio_file_data']
@@ -413,7 +407,7 @@ def download_single_audio_file(file_id, metadata_only=False, redownload: bool = 
                 metadata = [file if int(file.site_ID) == x.site_ID else x for x in metadata]
             else:
                 metadata.append(file)
-            save_list_of_files_to_csv(metadata, CSV_OUTPUT_FILE)
+            save_list_of_files_to_csv(metadata, CSV_OUTPUT_PATH)
             return response
         else:
             message = "Unable to log into site"
@@ -428,7 +422,7 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
         if session is not None:
             # assuming that worked:
             # start looping through every web page and see how it goes!
-            metadata = csv_to_audiofiledata_list(CSV_OUTPUT_FILE)
+            metadata = csv_to_audiofiledata_list(CSV_OUTPUT_PATH)
             metadata_ids = [x.site_ID for x in metadata]
             files = []
             for file_id in range(int(initial_file_id), int(last_file_id) + 1):
@@ -447,7 +441,7 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
                     except Exception as ex:
                         print(f"Error downloading file { file_id }: { ex }")
                 # attempt to save csv every loop to always have updated data.
-                save_list_of_files_to_csv(metadata, CSV_OUTPUT_FILE)
+                save_list_of_files_to_csv(metadata, CSV_OUTPUT_PATH)
                 # wait one second so as not to overload their poor servers
                 time.sleep(1)
 
@@ -466,7 +460,7 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
 
 def download_all_files(metadata_only=False):
     # check for metadata.
-    metadata = csv_to_audiofiledata_list(CSV_OUTPUT_FILE)
+    metadata = csv_to_audiofiledata_list(CSV_OUTPUT_PATH)
     # if no metadata, create it?
 
     # then download all files?

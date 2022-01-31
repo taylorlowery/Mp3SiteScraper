@@ -1,21 +1,21 @@
 site_ID,site_Topic,site_Speaker,site_speaker_formatted,site_Title,site_title_formatted,site_SeriesNumber,site_series_number_formatted,site_Organization,site_Ministry,site_Groups,site_Price,site_Description,site_Date,site_Type,site_group_first,site_group_smallest,site_group_matched,site_details_url,site_download_url,site_outline_url,site_speaker_id,site_speaker_url,site_speaker_image_url,file_filename_original,file_filename_current,file_download_path,file_download_success,file_download_last_attempt,file_ext,file_size,file_Title,file_Album,file_Album_Artist,file_Artist,file_Genre,file_Track,file_Comment,file_Year,file_Composer,file_Artist_Original,file_Title_Original,file_Involved_people,file_Publisher,total_tracks,album_image_url,details_url,has_outline,notes
-1,Classical Education,Mrs. Trude Marston,,Science in the Poll-Parrot,,,,ACCS,,Related Groups: Foundational Fifteen: Classical Christian Education's First...Classical Education Subscription (over 850 mp3s),$2.00,Updated ACCS 1995 - A message from the Association of Classical and Christians Schools Conference 1995,,,,,,,https://www.wordmp3.com/download.aspx?id=1,,,,,ACCS_1995_Marston_Trude_Science_in_the_Poll-Parrot_Stage.mp3,0000001_Trude_Marston_-_Science_in_the_Poll-Parrot_Stage,"D:\Projects\Python\TempScraperContainer\ACCS 1995 Conference (Moscow, ID)\0000001_Trude_Marston_-_Science_in_the_Poll-Parrot_Stage",True,2022-01-30 09:32:06.389885,mp3,5440392,,"ACCS 1995 Conference (Moscow, ID)",,,Books & Spoken,12,"Original metadata:
-Title: Science in the Poll-Parrot
-Album: ACCS 1995 Conference (Moscow, ID)
-Artist: 
-Album Artist: None
-Genre: Books & Spoken
-Track: 12
-Year: 1995
-Original Comments:
-WordMP3.com",1995.0,,Trude Marston,Science in the Poll-Parrot,,,16,https://www.wordmp3.com/image.ashx?filename=%2fimages%2forg_accs.gif&width=100,https://www.wordmp3.com/details.aspx?id=1,False,
-2,Reconstruction,Dr. R.J. Rushdoony,,Atonement for the Land,,1,1/20,Chalcedon Foundation,,Related Group: R.J. Rushdoony - Complete Collection (213 mp3s),$2.00,"Great series with the encyclopedic R.J. Rushdoony at his best, tremendous insights into OT passages with relevant application today!",,,,,,,https://www.wordmp3.com/download.aspx?id=2,,118.0,https://www.wordmp3.com/speakers/profile.aspx?id=118,https://www.wordmp3.com/images/speaker/118.jpg,Rushdoony_Systematic_Theology_The_Land_01_Atonement.mp3,0000002_Rushdoony_Systematic_Theology_The_Land_01_Atonement.mp3,D:\Projects\Python\TempScraperContainer\Chalcedon Theology of the Land\0000002_Rushdoony_Systematic_Theology_The_Land_01_Atonement.mp3,True,2022-01-30 16:15:25.545557,mp3,2875830,,Chalcedon: Theology of the Land,,,Books & Spoken,1,"Original metadata:
-Title: Atonement for the Land
+3,Reconstruction,Dr. R.J. Rushdoony,,Debt & the Future,,10,10/20,Chalcedon Foundation,,Related Group: R.J. Rushdoony - Complete Collection (213 mp3s),$2.00,Dr. R.J. Rushdoony: Systematic Theology The Land p 10 Debt and Future,,,,,,,https://www.wordmp3.com/download.aspx?id=3,,118,https://www.wordmp3.com/speakers/profile.aspx?id=118,https://www.wordmp3.com/images/speaker/118.jpg,Rushdoony_Systematic_Theology_The_Land_10_Debt_and_Future.mp3,0000003_Rushdoony_Systematic_Theology_The_Land_10_Debt_and_Future.mp3,D:\Projects\Python\TempScraperContainer\Chalcedon Theology of the Land\0000003_Rushdoony_Systematic_Theology_The_Land_10_Debt_and_Future.mp3,True,2022-01-30 19:08:47.222268,mp3,5184013,,Chalcedon: Theology of the Land,,,Books & Spoken,10,"Original metadata:
+Title: Debt & the Future
 Album: Chalcedon: Theology of the Land
 Artist: 
 Album Artist: None
 Genre: Books & Spoken
-Track: 1
+Track: 10
 Year: None
 Original Comments:
-WordMP3.com",,,R.J. Rushdoony,Atonement for the Land,,,20,https://www.wordmp3.com/images/logo-dimmed.gif,https://www.wordmp3.com/details.aspx?id=2,False,
+WordMP3.com",,,R.J. Rushdoony,Debt & the Future,,,20,https://www.wordmp3.com/image.ashx?filename=%2fimages%2fchalcedon.gif&width=100,https://www.wordmp3.com/details.aspx?id=3,False,
+4,The Land,Dr. R.J. Rushdoony,R.J. Rushdoony,The Covenant & The Land,The Land 11,11,11/20,Chalcedon Foundation,,Related Group: R.J. Rushdoony - Complete Collection (213 mp3s),$2.00,Dr. R.J. Rushdoony: Systematic Theology The Land p 11 Covenant and the Land,,,,,,,https://www.wordmp3.com/download.aspx?id=4,,118,https://www.wordmp3.com/speakers/profile.aspx?id=118,https://www.wordmp3.com/images/speaker/118.jpg,Rushdoony_Systematic_Theology_The_Land_11_Covenant_and_the_Land.mp3,0000004_Rushdoony_Systematic_Theology_The_Land_11_Covenant_and_the_Land.mp3,D:\Projects\Python\TempScraperContainer\Chalcedon Theology of the Land\0000004_Rushdoony_Systematic_Theology_The_Land_11_Covenant_and_the_Land.mp3,True,2022-01-30 19:36:06.096450,mp3,3983635,,Chalcedon: Theology of the Land,,,Books & Spoken,11,"Original metadata:
+Title: The Covenant & The Land
+Album: Chalcedon: Theology of the Land
+Artist: 
+Album Artist: None
+Genre: Books & Spoken
+Track: 11
+Year: None
+Original Comments:
+WordMP3.com",,,R.J. Rushdoony,The Covenant & The Land,,,20,https://www.wordmp3.com/images/logo-dimmed.gif,https://www.wordmp3.com/details.aspx?id=4,False,
