@@ -1,25 +1,26 @@
-
 class Utilities:
 
     @classmethod
     def format_site_speaker_name(cls, speaker_name: str) -> str:
+        """Remove unwanted titles, extra spaces, and other strings from speaker names"""
         # TODO: extend list of strings to remove from speaker
 
         _strings_to_remove = [
             "Dr.",
             "Mrs.",
         ]
-        #remove unwanted titles from speaker names
-
         for string in _strings_to_remove:
             speaker_name = speaker_name.replace(string, "")
 
-        # remove extraneous spaces
+        # remove extra spaces
         speaker_name = speaker_name.strip()
         return speaker_name
 
     @classmethod
     def format_site_title(cls, site_title: str) -> str:
+        """Remove unwanted symbols from site titles"""
+        # remove double quotes
+        site_title = site_title.replace('""', '')
         return site_title
 
     @classmethod

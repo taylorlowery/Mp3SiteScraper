@@ -80,7 +80,7 @@ def get_file_data_from_page(session, details_url, download_url):
     ministry = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypMinistry'))
     audio_file_data.site_Ministry = ministry if ministry else ""
 
-    groups = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelProductGroups'))
+    groups = content.find(id='ctl00_ContentPlaceHolder_panelProductGroups').find('a').get('title')
     audio_file_data.site_Groups = groups if groups else ""
 
     price = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_lblPrice'))
@@ -221,6 +221,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
     # generate name for this mp3 file
     file_id = str(audio_file_data.site_ID).rjust(7, '0')
     file_title = original_file_name.replace(' ', '_')
+    audio_file_data.file_Title = file_title
     audio_file_data.file_filename_current = '{0}_{1}'.format(file_id, file_title)
     full_file_path = f"{STORAGE_PATH}{audio_file_data.file_filename_current}.{audio_file_data.file_ext}"
 
@@ -273,9 +274,6 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
         # use original mp3 title if present
         if audio_file_data.file_Title_Original and len(audio_file_data.file_Title_Original) > 0:
             audiofile.tag.title = audio_file_data.file_Title_Original
-            audio_file_data.site_Title = audio_file_data.file_Title_Original
-        else:
-            audiofile.tag.site_Title = audio_file_data.site_Title
 
         if not audio_file_data.file_Album or len(audio_file_data.file_Album) == 0:
             audiofile.tag.album = audio_file_data.file_Album
@@ -322,7 +320,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
             audiofile.tag.save()
             # confirm download on metadata class
             audio_file_data.file_download_success = True
-            audio_file_data.file_download_path = full_file_path.replace(audio_file_data.file_filename_current, "")
+
         except Exception as ex:
             message = "Download of {0} failed: {1}".format(audio_file_data.file_filename_current, ex)
 
@@ -330,12 +328,16 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
         try:
             # f"{STORAGE_PATH}{filename}.{file_extension}"
             filename = f"{ file_id }_{ audio_file_data.site_Title }.{ audio_file_data.file_ext }"
-            album_file_path = os.path.join(STORAGE_PATH, audio_file_data.file_Album.replace(":", ""))
+            album_file_path = STORAGE_PATH
+            if audio_file_data.file_Album and len(audio_file_data.file_Album) > 0:
+                album_file_path = os.path.join(STORAGE_PATH, audio_file_data.file_Album.replace(":", ""))
+
             if not os.path.isdir(album_file_path):
                 os.mkdir(album_file_path)
+
             file_path_with_album_dir = os.path.join(album_file_path, audio_file_data.file_filename_current)
             os.replace(full_file_path, file_path_with_album_dir)
-            audio_file_data.file_download_path = file_path_with_album_dir
+            audio_file_data.file_download_path = album_file_path
         except Exception as ex:
             print(f"Unable to move { full_file_path } to album directory after download: { ex }")
 
