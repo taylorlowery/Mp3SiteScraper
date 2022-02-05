@@ -66,93 +66,100 @@ def get_file_data_from_page(session, details_url, download_url):
     # get metadata from page
     content = details_soup.find('div', class_='content')
 
-    audio_file_data = MetadataRow()
+    if content:
 
-    # Title = Title
-    audio_file_data.site_Title = details_soup.find("meta", property="og:title")["content"]
-    audio_file_data.site_Title = audio_file_data.site_Title.replace(" - WordMp3.com", "")
-    audio_file_data.site_title_formatted = Utilities.format_site_title(audio_file_data.site_Title)
+        audio_file_data = MetadataRow()
 
-    # Album Artist = Organization
-    organization = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
-    audio_file_data.site_Organization = organization if organization else ""
+        # Title = Title
+        audio_file_data.site_Title = details_soup.find("meta", property="og:title")["content"]
+        audio_file_data.site_Title = audio_file_data.site_Title.replace(" - WordMp3.com", "")
+        audio_file_data.site_title_formatted = Utilities.format_site_title(audio_file_data.site_Title)
 
-    ministry = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypMinistry'))
-    audio_file_data.site_Ministry = ministry if ministry else ""
+        # Album Artist = Organization
+        organization = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
+        audio_file_data.site_Organization = organization if organization else ""
 
-    groups = content.find(id='ctl00_ContentPlaceHolder_panelProductGroups').find('a').get('title')
-    audio_file_data.site_Groups = groups if groups else ""
+        ministry = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypMinistry'))
+        audio_file_data.site_Ministry = ministry if ministry else ""
 
-    price = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_lblPrice'))
-    audio_file_data.site_Price = price if price else ""
+        group_section = content.find(id='ctl00_ContentPlaceHolder_panelProductGroups')
+        groups = None
+        if group_section:
+            group_link = group_section.find('a')
+            if group_link:
+                groups = group_link.get('title')
+        audio_file_data.site_Groups = groups if groups else ""
 
-    # Genre = Type / Topic
-    type = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelItemType')).replace("Type:", "")
-    topic = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypTopic'))
-    audio_file_data.site_Type = type if type else ""
-    audio_file_data.site_Topic = topic if topic else ""
+        price = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_lblPrice'))
+        audio_file_data.site_Price = price if price else ""
 
-    # Artist = Speaker
-    speaker_html = content.find(id='ctl00_ContentPlaceHolder_hypSpeaker')
-    speaker = clean_html_contents(speaker_html)
-    audio_file_data.site_Speaker = speaker if speaker else ""
-    if speaker:
-        audio_file_data.site_speaker_formatted = Utilities.format_site_speaker_name(audio_file_data.site_Speaker)
-    speaker_url = speaker_html["href"]
-    if speaker_url:
-        audio_file_data.site_speaker_url = f"{ SITE_URL }{speaker_url}"
-        speaker_id_str = speaker_url.replace("/speakers/profile.aspx?id=", "")
-        if speaker_id_str:
-            speaker_id = int(speaker_id_str)
-            audio_file_data.site_speaker_id = speaker_id
+        # Genre = Type / Topic
+        type = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelItemType')).replace("Type:", "")
+        topic = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypTopic'))
+        audio_file_data.site_Type = type if type else ""
+        audio_file_data.site_Topic = topic if topic else ""
+
+        # Artist = Speaker
+        speaker_html = content.find(id='ctl00_ContentPlaceHolder_hypSpeaker')
+        speaker = clean_html_contents(speaker_html)
+        audio_file_data.site_Speaker = speaker if speaker else ""
+        if speaker:
+            audio_file_data.site_speaker_formatted = Utilities.format_site_speaker_name(audio_file_data.site_Speaker)
+        speaker_url = speaker_html["href"]
+        if speaker_url:
+            audio_file_data.site_speaker_url = f"{ SITE_URL }{speaker_url}"
+            speaker_id_str = speaker_url.replace("/speakers/profile.aspx?id=", "")
+            if speaker_id_str:
+                speaker_id = int(speaker_id_str)
+                audio_file_data.site_speaker_id = speaker_id
 
 
-    # Comment = Description + Speaker
-    # page_data['comment'] = content.find(id=").text
-    # Description
-    for tag in details_soup.find_all("meta"):
-        if tag.get("name", None) == "description":
-            audio_file_data.site_Description = tag["content"]
-            break
+        # Comment = Description + Speaker
+        # page_data['comment'] = content.find(id=").text
+        # Description
+        for tag in details_soup.find_all("meta"):
+            if tag.get("name", None) == "description":
+                audio_file_data.site_Description = tag["content"]
+                break
 
-    # year
-    date = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelDate'))
-    if date:
-        date = date.replace("Date:", "").strip()
-        try:
-            audio_file_data.site_Date = datetime.datetime.strptime(date, '%m/%d/%Y').year
-        except:
-            audio_file_data.site_Date = date
-    else:
-        audio_file_data.site_Date = ""
-    # Track  # = Series (have to parse because it's formatted as Part x of a y part series.
-    # You can see how I did it in the spreadsheet)
-    raw_track_info = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
-    track_data = [x for x in raw_track_info.split() if x.isdigit()] if raw_track_info else ""
-    audio_file_data.site_SeriesNumber = track_data[0] if len(track_data) == 2 else None
+        # year
+        date = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelDate'))
+        if date:
+            date = date.replace("Date:", "").strip()
+            try:
+                audio_file_data.site_Date = datetime.datetime.strptime(date, '%m/%d/%Y').year
+            except:
+                audio_file_data.site_Date = date
+        else:
+            audio_file_data.site_Date = ""
+        # Track  # = Series (have to parse because it's formatted as Part x of a y part series.
+        # You can see how I did it in the spreadsheet)
+        raw_track_info = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
+        track_data = [x for x in raw_track_info.split() if x.isdigit()] if raw_track_info else ""
+        audio_file_data.site_SeriesNumber = track_data[0] if len(track_data) == 2 else None
 
-    # audio_file_data.total_tracks = track_data[1] if len(track_data) == 2 else None
-    # Year / Date = Unfortunately, no consistent date found on web page. Have to get it from the file
+        # audio_file_data.total_tracks = track_data[1] if len(track_data) == 2 else None
+        # Year / Date = Unfortunately, no consistent date found on web page. Have to get it from the file
 
-    # image urls
-    speaker_img_url_stub = content.find(id='ctl00_ContentPlaceHolder_imgSpeaker')['src'] if content.find(
-        id='ctl00_ContentPlaceHolder_imgSpeaker') else ""
-    audio_file_data.site_speaker_image_url = '{}{}'.format(SITE_URL, speaker_img_url_stub) if speaker_img_url_stub else ""
+        # image urls
+        speaker_img_url_stub = content.find(id='ctl00_ContentPlaceHolder_imgSpeaker')['src'] if content.find(
+            id='ctl00_ContentPlaceHolder_imgSpeaker') else ""
+        audio_file_data.site_speaker_image_url = '{}{}'.format(SITE_URL, speaker_img_url_stub) if speaker_img_url_stub else ""
 
-    album_img_url_stub = content.find(id='ctl00_ContentPlaceHolder_imgItem')['src'] if content.find(
-        id='ctl00_ContentPlaceHolder_imgItem') else ""
-    audio_file_data.album_image_url = '{}{}'.format(SITE_URL, album_img_url_stub) if album_img_url_stub else ""
+        album_img_url_stub = content.find(id='ctl00_ContentPlaceHolder_imgItem')['src'] if content.find(
+            id='ctl00_ContentPlaceHolder_imgItem') else ""
+        audio_file_data.album_image_url = '{}{}'.format(SITE_URL, album_img_url_stub) if album_img_url_stub else ""
 
-    audio_file_data.details_url = details_url
-    audio_file_data.site_download_url = download_url
+        audio_file_data.details_url = details_url
+        audio_file_data.site_download_url = download_url
 
-    if content.find(id='ctl00_ContentPlaceHolder_hypPDFOutline2'):
-        audio_file_data.has_outline = True
+        if content.find(id='ctl00_ContentPlaceHolder_hypPDFOutline2'):
+            audio_file_data.has_outline = True
 
-    # clean all string fields
-    audio_file_data = clean_dataclass_string_fields(audio_file_data)
+        # clean all string fields
+        audio_file_data = clean_dataclass_string_fields(audio_file_data)
 
-    return audio_file_data
+        return audio_file_data
 
 
 def download_file_from_page(session, audio_file_data: MetadataRow):
