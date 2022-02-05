@@ -92,15 +92,6 @@ def get_file_data_from_page(session, details_url, download_url):
     audio_file_data.site_Type = type if type else ""
     audio_file_data.site_Topic = topic if topic else ""
 
-    if type and topic:
-        audio_file_data.file_Genre = '{}: {}'.format(type, topic)
-    elif type:
-        audio_file_data.file_Genre = type
-    elif topic:
-        audio_file_data.file_Genre = topic
-    else:
-        audio_file_data.file_Genre = ""
-
     # Artist = Speaker
     speaker_html = content.find(id='ctl00_ContentPlaceHolder_hypSpeaker')
     speaker = clean_html_contents(speaker_html)
@@ -115,47 +106,6 @@ def get_file_data_from_page(session, details_url, download_url):
             speaker_id = int(speaker_id_str)
             audio_file_data.site_speaker_id = speaker_id
 
-    #Album
-    # if it's part of a series
-    series_number = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
-    audio_file_data.site_SeriesNumber = series_number if series_number else ""
-    if series_number:
-
-        # format site series number
-        audio_file_data.site_series_number_formatted = Utilities.format_site_series_number(audio_file_data.site_SeriesNumber)
-
-        # and has one or more related groups,
-        groups_section = content.find(id='ctl00_ContentPlaceHolder_panelProductGroups')
-        if groups_section:
-            # use the first related group
-            table = groups_section.find("table")
-            rows = table.find_all("tr")
-            for row in rows:
-                columns = row.find_all("td")
-                for column in columns:
-                    links = column.find_all("a")
-                    for link in links:
-                        audio_file_data.file_Album = link.text
-                        if len(audio_file_data.file_Album) > 0:
-                            break
-                    if len(audio_file_data.file_Album) > 0:
-                        break
-                if len(audio_file_data.file_Album) > 0:
-                    break
-        # no related groups,
-        elif not groups_section:
-            # use Organization: Topic
-            if organization:
-                audio_file_data.file_Album = "{}: {}".format(organization, topic)
-            else:
-                # If it's part of a series and has no related groups and no organization, Speaker: Topic
-                audio_file_data.file_Album = "{}: {}".format(speaker, topic)
-    # If it's NOT part of a series, use WordMP3: Organization
-    else:
-        if organization:
-            audio_file_data.file_Album = "WordMP3: {}".format(organization)
-        else:
-            audio_file_data.file_Album = "WordMP3: {}".format(topic)
 
     # Comment = Description + Speaker
     # page_data['comment'] = content.find(id=").text
