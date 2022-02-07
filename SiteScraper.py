@@ -150,11 +150,12 @@ def get_file_data_from_page(session, details_url, download_url):
             id='ctl00_ContentPlaceHolder_imgItem') else ""
         audio_file_data.album_image_url = '{}{}'.format(SITE_URL, album_img_url_stub) if album_img_url_stub else ""
 
-        audio_file_data.details_url = details_url
+        audio_file_data.site_details_url = details_url
         audio_file_data.site_download_url = download_url
 
         if content.find(id='ctl00_ContentPlaceHolder_hypPDFOutline2'):
             audio_file_data.has_outline = True
+            audio_file_data.site_outline_url = f"{SITE_URL}/files/outlines/{audio_file_data.site_ID}.pdf"
 
         # clean all string fields
         audio_file_data = clean_dataclass_string_fields(audio_file_data)
@@ -246,7 +247,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
 
         # attach download and details links
         audiofile.tag.audio_file_url = audio_file_data.site_download_url
-        audiofile.tag.audio_source_url = audio_file_data.details_url
+        audiofile.tag.audio_source_url = audio_file_data.site_details_url
 
         # definitely use page_data genre
         audiofile.tag.genre = audio_file_data.file_Genre
@@ -305,8 +306,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
     # download outline
     if audio_file_data.has_outline:
         try:
-            outline_dl_url = f"{SITE_URL}/files/outlines/{audio_file_data.site_ID}.pdf"
-            outline_resp = requests.get(outline_dl_url)
+            outline_resp = requests.get(audio_file_data.site_outline_url)
             if outline_resp.ok:
                 outline_filename = f"{ STORAGE_PATH }{ audio_file_data.file_filename_current }_outline.pdf"
                 with open(outline_filename, "wb") as f:

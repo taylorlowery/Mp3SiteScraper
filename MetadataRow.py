@@ -60,7 +60,6 @@ class FileData:
 class MiscellaneousMetadata:
     total_tracks: int = None
     album_image_url: str = ''
-    details_url: str = ''
     has_outline: bool = False
     notes: str = ''
 
