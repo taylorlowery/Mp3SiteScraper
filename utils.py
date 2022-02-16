@@ -1,3 +1,6 @@
+from dataclasses import is_dataclass, fields
+
+
 class Utilities:
 
     @classmethod
@@ -29,3 +32,24 @@ class Utilities:
         parts = site_series_number.split()
         formatted_series_number = f"{parts[1].rjust(2, '0')}/{parts[4].rjust(2, '0')}"
         return formatted_series_number
+
+    @classmethod
+    def clean_html_contents(cls, html_element):
+        if html_element is None:
+            return ""
+        return cls.remove_extra_whitespace(html_element.text)
+
+    @classmethod
+    def remove_extra_whitespace(cls, input: str) -> str:
+        return " ".join(input.split())
+
+    @classmethod
+    def clean_dataclass_string_fields(cls, instance):
+        if not is_dataclass(instance):
+            return instance
+        for field in [f.name for f in fields(instance)]:
+            current_val = getattr(instance, field)
+            if isinstance(current_val, str):
+                clean_val = cls.remove_extra_whitespace(current_val)
+                setattr(instance, field, clean_val)
+        return instance
