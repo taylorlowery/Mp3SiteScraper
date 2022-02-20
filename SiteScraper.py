@@ -1,4 +1,3 @@
-import dataclasses
 import datetime
 import os.path
 import time
@@ -15,27 +14,6 @@ from MetadataRow import MetadataRow, FileData, MiscellaneousMetadata, SiteMetada
 from credentials import USERNAME, PASSWORD
 from settings import CSV_OUTPUT_PATH, SITE_URL, STORAGE_PATH
 from utils import Utilities
-
-
-def clean_html_contents(html_element):
-    if html_element is None:
-        return ""
-    return remove_extra_whitespace(html_element.text)
-
-
-def remove_extra_whitespace(input: str) -> str:
-    return " ".join(input.split())
-
-
-def clean_dataclass_string_fields(instance):
-    if not dataclasses.is_dataclass(instance):
-        return instance
-    for field in [f.name for f in fields(instance)]:
-        current_val = getattr(instance, field)
-        if isinstance(current_val, str):
-            clean_val = remove_extra_whitespace(current_val)
-            setattr(instance, field, clean_val)
-    return instance
 
 
 def generate_login_data(login_page):
@@ -59,7 +37,10 @@ def generate_login_data(login_page):
     return login_data
 
 
-def get_file_data_from_page(session, details_url, download_url):
+def scrape_single_page(session, file_id: int) -> MetadataRow:
+    details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
+    download_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
+
     open_details_page = session.get(details_url)
     details_soup = BeautifulSoup(open_details_page.content, 'lxml')
 
@@ -68,7 +49,7 @@ def get_file_data_from_page(session, details_url, download_url):
 
     if content:
 
-        audio_file_data = MetadataRow()
+        audio_file_data = MetadataRow(site_ID=file_id)
 
         # Title = Title
         audio_file_data.site_Title = details_soup.find("meta", property="og:title")["content"]
@@ -76,10 +57,10 @@ def get_file_data_from_page(session, details_url, download_url):
         audio_file_data.site_title_formatted = Utilities.format_site_title(audio_file_data.site_Title)
 
         # Album Artist = Organization
-        organization = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
+        organization = Utilities.clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypOrganization'))
         audio_file_data.site_Organization = organization if organization else ""
 
-        ministry = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypMinistry'))
+        ministry = Utilities.clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypMinistry'))
         audio_file_data.site_Ministry = ministry if ministry else ""
 
         group_section = content.find(id='ctl00_ContentPlaceHolder_panelProductGroups')
@@ -90,18 +71,18 @@ def get_file_data_from_page(session, details_url, download_url):
                 groups = group_link.get('title')
         audio_file_data.site_Groups = groups if groups else ""
 
-        price = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_lblPrice'))
+        price = Utilities.clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_lblPrice'))
         audio_file_data.site_Price = price if price else ""
 
         # Genre = Type / Topic
-        type = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelItemType')).replace("Type:", "")
-        topic = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypTopic'))
+        type = Utilities.clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelItemType')).replace("Type:", "")
+        topic = Utilities.clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_hypTopic'))
         audio_file_data.site_Type = type if type else ""
         audio_file_data.site_Topic = topic if topic else ""
 
         # Artist = Speaker
         speaker_html = content.find(id='ctl00_ContentPlaceHolder_hypSpeaker')
-        speaker = clean_html_contents(speaker_html)
+        speaker = Utilities.clean_html_contents(speaker_html)
         audio_file_data.site_Speaker = speaker if speaker else ""
         if speaker:
             audio_file_data.site_speaker_formatted = Utilities.format_site_speaker_name(audio_file_data.site_Speaker)
@@ -123,7 +104,7 @@ def get_file_data_from_page(session, details_url, download_url):
                 break
 
         # year
-        date = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelDate'))
+        date = Utilities.clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelDate'))
         if date:
             date = date.replace("Date:", "").strip()
             try:
@@ -134,7 +115,7 @@ def get_file_data_from_page(session, details_url, download_url):
             audio_file_data.site_Date = ""
         # Track  # = Series (have to parse because it's formatted as Part x of a y part series.
         # You can see how I did it in the spreadsheet)
-        raw_track_info = clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
+        raw_track_info = Utilities.clean_html_contents(content.find(id='ctl00_ContentPlaceHolder_panelSeriesNumber'))
         track_data = [x for x in raw_track_info.split() if x.isdigit()] if raw_track_info else ""
         audio_file_data.site_SeriesNumber = track_data[0] if len(track_data) == 2 else None
 
@@ -158,7 +139,7 @@ def get_file_data_from_page(session, details_url, download_url):
             audio_file_data.site_outline_url = f"{SITE_URL}/files/outlines/{audio_file_data.site_ID}.pdf"
 
         # clean all string fields
-        audio_file_data = clean_dataclass_string_fields(audio_file_data)
+        audio_file_data = Utilities.clean_dataclass_string_fields(audio_file_data)
 
         return audio_file_data
 
@@ -181,7 +162,9 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
     file_title = original_file_name.replace(' ', '_')
     audio_file_data.file_Title = file_title
     audio_file_data.file_filename_current = '{0}_{1}'.format(file_id, file_title)
-    full_file_path = f"{STORAGE_PATH}{audio_file_data.file_filename_current}.{audio_file_data.file_ext}"
+    full_file_path = f"{STORAGE_PATH}{audio_file_data.file_filename_current}"
+    if not full_file_path.endswith(audio_file_data.file_ext):
+        full_file_path = f"{full_file_path}.{audio_file_data.file_ext}"
 
     message = ""
 
@@ -206,6 +189,8 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
         audio_file_data.file_Year = audiofile.tag.getBestDate()
 
         original_comments = audiofile.tag.comments
+
+        audiofile.tag.clear()
 
         # cover image
         if audio_file_data.album_image_url != "":
@@ -280,26 +265,31 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
             audio_file_data.file_download_success = True
 
         except Exception as ex:
-            message = "Download of {0} failed: {1}".format(audio_file_data.file_filename_current, ex)
+            audio_file_data.file_download_success = False
+            message = "Download of {0} failed: {1}\n".format(audio_file_data.file_filename_current, ex)
 
-        # create directory structure for album
-        try:
-            # f"{STORAGE_PATH}{filename}.{file_extension}"
-            filename = f"{ file_id }_{ audio_file_data.site_Title }.{ audio_file_data.file_ext }"
-            album_file_path = STORAGE_PATH
-            if audio_file_data.file_Album and len(audio_file_data.file_Album) > 0:
-                album_file_path = os.path.join(STORAGE_PATH, audio_file_data.file_Album.replace(":", ""))
+        if audio_file_data.file_download_success:
+            # create directory structure for album
+            try:
+                # f"{STORAGE_PATH}{filename}.{file_extension}"
+                album_file_path = STORAGE_PATH
+                if audio_file_data.file_Album and len(audio_file_data.file_Album) > 0:
+                    album_file_path = os.path.join(STORAGE_PATH, audio_file_data.file_Album.replace(":", ""))
+                album_file_path = album_file_path.strip()
 
-            if not os.path.isdir(album_file_path):
-                os.mkdir(album_file_path)
+                if not os.path.isdir(album_file_path):
+                    os.mkdir(album_file_path)
 
-            file_path_with_album_dir = os.path.join(album_file_path, audio_file_data.file_filename_current)
-            os.replace(full_file_path, file_path_with_album_dir)
-            audio_file_data.file_download_path = album_file_path
-        except Exception as ex:
-            print(f"Unable to move { full_file_path } to album directory after download: { ex }")
+                file_path_with_album_dir = os.path.join(album_file_path, audio_file_data.file_filename_current)
 
-        message = "Download of {0} successful!".format(audio_file_data.file_filename_current)
+                if os.path.isfile(full_file_path):
+                    os.replace(full_file_path, file_path_with_album_dir)
+                audio_file_data.file_download_path = album_file_path
+
+                message = "Download of {0} successful!\n".format(audio_file_data.file_filename_current)
+            except Exception as ex:
+                print(f"Unable to move { full_file_path } to album directory after download: { ex }\n")
+
     else:
         message = "Download of {0} failed".format(audio_file_data.file_filename_current)
 
@@ -319,11 +309,8 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
 
 def attempt_file_download(session, file_id, metadata_only=False, redownload: bool = False):
     # urls for details web page and download link
-    details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
-    dl_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
 
-    audio_file_data = get_file_data_from_page(session=session, details_url=details_url, download_url=dl_url)
-    audio_file_data.site_ID = file_id
+    audio_file_data = scrape_single_page(session=session, file_id=file_id)
 
     message = '{} - {}'.format(audio_file_data.site_ID, audio_file_data.site_Title)
 
