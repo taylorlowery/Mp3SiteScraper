@@ -1,5 +1,4 @@
-import pytest
-from utils import Utilities
+from lib.utils import Utilities
 
 
 # clean html element

@@ -13,7 +13,8 @@ from dictor import dictor
 from MetadataRow import MetadataRow, FileData, MiscellaneousMetadata, SiteMetadata
 from credentials import USERNAME, PASSWORD
 from settings import CSV_OUTPUT_PATH, SITE_URL, STORAGE_PATH
-from utils import Utilities
+from lib.utils import Utilities
+from lib.ColorPrint import print_error, print_success
 
 
 def generate_login_data(login_page):
@@ -199,7 +200,8 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
                 album_img_bytes = album_img_resp.content
                 audiofile.tag.images.set(3, album_img_bytes, "image/jpeg")
             except Exception as e:
-                print(f"Error downloading album cover image from { audio_file_data.album_image_url }: \n{ e }")
+                print_error(error_type=f"Error downloading album cover image from { audio_file_data.album_image_url }",
+                            text=f"{ e }")
 
         # artist image
         if audio_file_data.site_speaker_image_url != "":
@@ -208,7 +210,8 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
                 speaker_img_bytes = speaker_img_resp.content
                 audiofile.tag.images.set(8, speaker_img_bytes, "image/jpeg")
             except Exception as e:
-                print(f"Error downloading speaker image from { audio_file_data.site_speaker_image_url }: \n{ e }")
+                print_error(error_type=f"Error downloading speaker image from { audio_file_data.site_speaker_image_url }",
+                            text=f"{e}")
 
         # add appropriate metadata to audio file
         # TODO: full comparison of original metadata and metadata from page. Only use page if blank?
