@@ -55,18 +55,27 @@ def generate_login_data(login_page):
 
 
 def scrape_single_page(session, file_id: int) -> MetadataRow:
+    audio_file_data = MetadataRow(site_ID=file_id)
     details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
     download_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
 
+    r = session.head(details_url, headers=BROWSER_REQUEST_HEADERS, allow_redirects=True)
+
     open_details_page = session.get(details_url, headers=BROWSER_REQUEST_HEADERS)
     details_soup = BeautifulSoup(open_details_page.content, 'lxml')
+
+    warning_html = details_soup.find(id="ctl00_ContentPlaceHolder_Notification1_panelNotification")
+    warning = Utilities.clean_html_contents(warning_html)
+    # TODO: further handling of pages without content
+    if warning == "The item you requested could not be found.":
+        audio_file_data.notes = warning
+        return audio_file_data
 
     # get metadata from page
     content = details_soup.find('div', class_='content')
 
     if content:
 
-        audio_file_data = MetadataRow(site_ID=file_id)
 
         # Title = Title
         audio_file_data.site_Title = details_soup.find("meta", property="og:title")["content"]
