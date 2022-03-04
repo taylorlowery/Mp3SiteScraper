@@ -12,10 +12,26 @@ from dictor import dictor
 
 from MetadataRow import MetadataRow, FileData, MiscellaneousMetadata, SiteMetadata
 from credentials import USERNAME, PASSWORD
-from settings import CSV_OUTPUT_PATH, SITE_URL, STORAGE_PATH
-from lib.utils import Utilities
-from lib.ColorPrint import print_error, print_success
+from settings import CSV_OUTPUT_PATH, SITE_URL, STORAGE_PATH, SECONDS_BETWEEN_DOWNLOADS
+from utils import Utilities
 
+BROWSER_REQUEST_HEADERS = {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "max-age=0",
+            "Connection": "keep-alive",
+            "DNT": "1",
+            "Host": "www.wordmp3.com",
+            "Referer": "https://www.wordmp3.com/",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-User": "?1",
+            "Sec-GPC": "1",
+            "Upgrade-Insecure-Requests": "1",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36"
+        }
 
 def generate_login_data(login_page):
     login_data = {
@@ -42,7 +58,7 @@ def scrape_single_page(session, file_id: int) -> MetadataRow:
     details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
     download_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
 
-    open_details_page = session.get(details_url)
+    open_details_page = session.get(details_url, headers=BROWSER_REQUEST_HEADERS)
     details_soup = BeautifulSoup(open_details_page.content, 'lxml')
 
     # get metadata from page
@@ -150,7 +166,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
     audio_file_data.file_download_last_attempt = datetime.datetime.now()
 
     # get initial filetype
-    r = session.head(audio_file_data.site_download_url, allow_redirects=True)
+    r = session.head(audio_file_data.site_download_url, headers=BROWSER_REQUEST_HEADERS, allow_redirects=True)
     original_file_name = dictor(r.headers, "Content-Disposition").replace("attachment; filename=", "")
     file_size_str = dictor(r.headers, "Content-Length")
     if file_size_str:
@@ -170,7 +186,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
     message = ""
 
     # assuming that worked
-    file = session.get(audio_file_data.site_download_url, allow_redirects=True)
+    file = session.get(audio_file_data.site_download_url, headers=BROWSER_REQUEST_HEADERS, allow_redirects=True)
 
     if file.status_code == 200:
         with open(full_file_path, 'wb') as f:
@@ -196,22 +212,20 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
         # cover image
         if audio_file_data.album_image_url != "":
             try:
-                album_img_resp = requests.get(audio_file_data.album_image_url)
+                album_img_resp = session.get(audio_file_data.album_image_url, headers=BROWSER_REQUEST_HEADERS)
                 album_img_bytes = album_img_resp.content
                 audiofile.tag.images.set(3, album_img_bytes, "image/jpeg")
             except Exception as e:
-                print_error(error_type=f"Error downloading album cover image from { audio_file_data.album_image_url }",
-                            text=f"{ e }")
+                print(f"Error downloading album cover image from { audio_file_data.album_image_url }: \n{ e }")
 
         # artist image
         if audio_file_data.site_speaker_image_url != "":
             try:
-                speaker_img_resp = requests.get(audio_file_data.site_speaker_image_url)
+                speaker_img_resp = session.get(audio_file_data.site_speaker_image_url)
                 speaker_img_bytes = speaker_img_resp.content
                 audiofile.tag.images.set(8, speaker_img_bytes, "image/jpeg")
             except Exception as e:
-                print_error(error_type=f"Error downloading speaker image from { audio_file_data.site_speaker_image_url }",
-                            text=f"{e}")
+                print(f"Error downloading speaker image from { audio_file_data.site_speaker_image_url }: \n{ e }")
 
         # add appropriate metadata to audio file
         # TODO: full comparison of original metadata and metadata from page. Only use page if blank?
@@ -299,7 +313,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
     # download outline
     if audio_file_data.has_outline:
         try:
-            outline_resp = requests.get(audio_file_data.site_outline_url)
+            outline_resp = session.get(audio_file_data.site_outline_url)
             if outline_resp.ok:
                 outline_filename = f"{ STORAGE_PATH }{ audio_file_data.file_filename_current }_outline.pdf"
                 with open(outline_filename, "wb") as f:
@@ -332,16 +346,20 @@ def create_site_session():
     with requests.Session() as session:
         #  create session based on site login page
         login_url = '{site_url}/myaccount/login.aspx'.format(site_url=SITE_URL)
-        login_page = session.get(login_url)
 
+        login_page_resp = session.get(login_url, headers=BROWSER_REQUEST_HEADERS)
+        if not login_page_resp.ok:
+            print(login_page_resp.text)
+            return None
         # generate login data object based on site login form
-        login_data = generate_login_data(login_page)
+        login_data = generate_login_data(login_page_resp)
 
         # attempt login
-        response = session.post(login_url, data=login_data)
+        response = session.post(login_url, headers=BROWSER_REQUEST_HEADERS, data=login_data)
         if response.status_code == 200:  # successful login
             return session
         else:
+            print(response.text)
             return None
 
 
@@ -391,8 +409,8 @@ def download_audio_file_range(initial_file_id, last_file_id, metadata_only=False
                         print(f"Error downloading file { file_id }: { ex }")
                 # attempt to save csv every loop to always have updated data.
                 save_list_of_files_to_csv(metadata, CSV_OUTPUT_PATH)
-                # wait one second so as not to overload their poor servers
-                time.sleep(1)
+                # wait so as not to overload their poor servers
+                time.sleep(SECONDS_BETWEEN_DOWNLOADS)
 
             return files
 

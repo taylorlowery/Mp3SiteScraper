@@ -11,3 +11,6 @@ SITE_URL = ''
 
 # output path for CSV of download results
 CSV_OUTPUT_PATH = ''
+
+# seconds to sleep between file downloads
+SECONDS_BETWEEN_DOWNLOADS = 1
