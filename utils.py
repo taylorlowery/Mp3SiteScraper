@@ -11,6 +11,14 @@ class Utilities:
         _strings_to_remove = [
             "Dr.",
             "Mrs.",
+            "Mr.",
+            "Rev.",
+            "Pastor",
+            "Ms.",
+            "Dr ",
+            "Mrs ",
+            "Mr ",
+            "Rev "            
         ]
         for string in _strings_to_remove:
             speaker_name = speaker_name.replace(string, "")
