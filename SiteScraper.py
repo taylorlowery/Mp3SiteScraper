@@ -13,7 +13,8 @@ from dictor import dictor
 from MetadataRow import MetadataRow, FileData, MiscellaneousMetadata, SiteMetadata
 from credentials import USERNAME, PASSWORD
 from settings import CSV_OUTPUT_PATH, SITE_URL, STORAGE_PATH, SECONDS_BETWEEN_DOWNLOADS
-from utils import Utilities
+from lib.utils import Utilities
+from lib.ColorPrint import print_error, print_success, print_warning
 
 BROWSER_REQUEST_HEADERS = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
@@ -58,24 +59,29 @@ def scrape_single_page(session, file_id: int) -> MetadataRow:
     audio_file_data = MetadataRow(site_ID=file_id)
     details_url = '{site}/details.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
     download_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
-
-    r = session.head(details_url, headers=BROWSER_REQUEST_HEADERS, allow_redirects=True)
-
     open_details_page = session.get(details_url, headers=BROWSER_REQUEST_HEADERS)
-    details_soup = BeautifulSoup(open_details_page.content, 'lxml')
 
-    warning_html = details_soup.find(id="ctl00_ContentPlaceHolder_Notification1_panelNotification")
-    warning = Utilities.clean_html_contents(warning_html)
-    # TODO: further handling of pages without content
-    if warning == "The item you requested could not be found.":
-        audio_file_data.notes = warning
+    # return immediately if there's an html error
+    if not open_details_page.ok:
+        print_error(error_type=f"{ open_details_page.status_code }", text=f"{ open_details_page.text }")
+        audio_file_data.notes = f"{ open_details_page.status_code }: { open_details_page.text }"
         return audio_file_data
+
+    details_soup = BeautifulSoup(open_details_page.content, 'lxml')
 
     # get metadata from page
     content = details_soup.find('div', class_='content')
 
     if content:
 
+        # return with warning if the only content on the page is a warning
+        warning_html = details_soup.find(id="ctl00_ContentPlaceHolder_Notification1_panelNotification")
+        warning = Utilities.clean_html_contents(warning_html)
+        # TODO: further handling of pages without content
+        if warning == "The item you requested could not be found.":
+            print_warning(f"Page {file_id} has no content but the warning {warning}")
+            audio_file_data.notes = warning
+            return audio_file_data
 
         # Title = Title
         audio_file_data.site_Title = details_soup.find("meta", property="og:title")["content"]
