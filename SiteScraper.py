@@ -358,7 +358,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
     return message, audio_file_data
 
 
-def attempt_file_download(session, file_id, metadata_only=False, redownload: bool = False):
+def attempt_file_download(session, file_id, metadata_only=False, redownload: bool = False, attempt_invalid_download: bool = False):
     # urls for details web page and download link
 
     audio_file_data = scrape_single_page(session=session, file_id=file_id)
@@ -366,8 +366,9 @@ def attempt_file_download(session, file_id, metadata_only=False, redownload: boo
     message = '{} - {}'.format(audio_file_data.site_ID, audio_file_data.site_Title)
 
     # only download audio file if parameter says to
-    if not metadata_only or redownload:
-        message, audio_file_data = download_file_from_page(session, audio_file_data)
+    if (not metadata_only) or redownload:
+        if not audio_file_data.invalid_item or attempt_invalid_download:
+            message, audio_file_data = download_file_from_page(session, audio_file_data)
 
     print(message)
     return {
