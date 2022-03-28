@@ -271,20 +271,24 @@ def parse_and_save_mp3_file(session, audio_file_data: MetadataRow, full_file_pat
     message = ""
     # get original file metadata
     audiofile = eyed3.load(full_file_path)
-    audio_file_data.file_Title_Original = audiofile.tag.title
-    audio_file_data.file_Album = audiofile.tag.album
-    audio_file_data.file_Album_Artist = audiofile.tag.album_artist
-    audio_file_data.file_Artist_Original = audiofile.tag.artist
-    audio_file_data.file_Publisher = audiofile.tag.publisher
-    audio_file_data.file_Genre = audiofile.tag.genre
-    track, total_tracks = dictor(audiofile.tag.track_num)
-    audio_file_data.file_Track = track
-    audio_file_data.total_tracks = total_tracks
-    audio_file_data.file_Year = audiofile.tag.getBestDate()
+    original_comments = []
+    if audiofile.tag is not None:
+        audio_file_data.file_Title_Original = audiofile.tag.title
+        audio_file_data.file_Album = audiofile.tag.album
+        audio_file_data.file_Album_Artist = audiofile.tag.album_artist
+        audio_file_data.file_Artist_Original = audiofile.tag.artist
+        audio_file_data.file_Publisher = audiofile.tag.publisher
+        audio_file_data.file_Genre = audiofile.tag.genre
+        track, total_tracks = dictor(audiofile.tag.track_num)
+        audio_file_data.file_Track = track
+        audio_file_data.total_tracks = total_tracks
+        audio_file_data.file_Year = audiofile.tag.getBestDate()
 
-    original_comments = audiofile.tag.comments
+        original_comments = audiofile.tag.comments
 
-    audiofile.tag.clear()
+        audiofile.tag.clear()
+    else:
+        audiofile.initTag()
 
     # cover image
     if audio_file_data.album_image_url != "":
@@ -347,7 +351,7 @@ def parse_and_save_mp3_file(session, audio_file_data: MetadataRow, full_file_pat
             comments += comment.text
 
         audiofile.tag.comments.set(comments)
-        audio_file_data.file_Comment = "\n".join([c.text for c in original_comments])
+        audio_file_data.file_Comment = "\n".join([c.text for c in original_comments]) if len(original_comments) > 0 else ""
 
     except Exception as ex:
         message = f"Couldn't set mp3 comments: {ex}"
