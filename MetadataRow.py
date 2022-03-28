@@ -62,6 +62,7 @@ class MiscellaneousMetadata:
     album_image_url: str = ''
     has_outline: bool = False
     notes: str = ''
+    invalid_item: bool = False
 
 
 # Metadata for audio file pulled from web page

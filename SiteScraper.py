@@ -61,11 +61,32 @@ def scrape_single_page(session, file_id: int) -> MetadataRow:
     download_url = '{site}/download.aspx?id={file_id}'.format(site=SITE_URL, file_id=file_id)
     open_details_page = session.get(details_url, headers=BROWSER_REQUEST_HEADERS)
 
+    audio_file_data.site_details_url = details_url
+    audio_file_data.site_download_url = download_url
+
     # return immediately if there's an html error
     if not open_details_page.ok:
         print_error(error_type=f"{ open_details_page.status_code }", text=f"{ open_details_page.text }")
         audio_file_data.notes = f"{ open_details_page.status_code }: { open_details_page.text }"
+        audio_file_data.invalid_item = True
         return audio_file_data
+
+    # Check to see if results from file download are valid
+    # get initial filetype
+    r = session.head(audio_file_data.site_download_url, headers=BROWSER_REQUEST_HEADERS, allow_redirects=False)
+    content_disposition = dictor(r.headers, "Content-Disposition")
+    if not r.ok or content_disposition is None:
+        audio_file_data.invalid_item = True
+        return audio_file_data
+
+    original_file_name = content_disposition.replace("attachment; filename=", "")
+
+    file_size_str = dictor(r.headers, "Content-Length")
+    if file_size_str:
+        audio_file_data.file_size = int(file_size_str)
+    audio_file_data.file_filename_original = original_file_name
+    audio_file_data.file_ext = original_file_name.split(".")[-1] if original_file_name else ".mp3"
+
 
     details_soup = BeautifulSoup(open_details_page.content, 'lxml')
 
@@ -163,9 +184,6 @@ def scrape_single_page(session, file_id: int) -> MetadataRow:
             id='ctl00_ContentPlaceHolder_imgItem') else ""
         audio_file_data.album_image_url = '{}{}'.format(SITE_URL, album_img_url_stub) if album_img_url_stub else ""
 
-        audio_file_data.site_details_url = details_url
-        audio_file_data.site_download_url = download_url
-
         if content.find(id='ctl00_ContentPlaceHolder_hypPDFOutline2'):
             audio_file_data.has_outline = True
             audio_file_data.site_outline_url = f"{SITE_URL}/files/outlines/{audio_file_data.site_ID}.pdf"
@@ -183,6 +201,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
     # get initial filetype
     r = session.head(audio_file_data.site_download_url, headers=BROWSER_REQUEST_HEADERS, allow_redirects=True)
     original_file_name = dictor(r.headers, "Content-Disposition").replace("attachment; filename=", "")
+
     file_size_str = dictor(r.headers, "Content-Length")
     if file_size_str:
         audio_file_data.file_size = int(file_size_str)
@@ -191,7 +210,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
 
     # generate name for this mp3 file
     file_id = str(audio_file_data.site_ID).rjust(7, '0')
-    file_title = original_file_name.replace(' ', '_')
+    file_title = audio_file_data.file_filename_original.replace(' ', '_')
     audio_file_data.file_Title = file_title
     audio_file_data.file_filename_current = '{0}_{1}'.format(file_id, file_title)
     full_file_path = f"{STORAGE_PATH}{audio_file_data.file_filename_current}"
