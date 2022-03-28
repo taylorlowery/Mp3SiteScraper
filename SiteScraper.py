@@ -210,7 +210,7 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
 
     # generate name for this mp3 file
     file_id = str(audio_file_data.site_ID).rjust(7, '0')
-    file_title = audio_file_data.file_filename_original.replace(' ', '_')
+    file_title = audio_file_data.file_filename_original.replace(' ', '_').replace("+", "_").replace("-", "_")
     audio_file_data.file_Title = file_title
     audio_file_data.file_filename_current = '{0}_{1}'.format(file_id, file_title)
     full_file_path = f"{STORAGE_PATH}{audio_file_data.file_filename_current}"
@@ -226,120 +226,29 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
         with open(full_file_path, 'wb') as f:
             f.write(file.content)
 
-        # get original file metadata
-        audiofile = eyed3.load(full_file_path)
-        audio_file_data.file_Title_Original = audiofile.tag.title
-        audio_file_data.file_Album = audiofile.tag.album
-        audio_file_data.file_Album_Artist = audiofile.tag.album_artist
-        audio_file_data.file_Artist_Original = audiofile.tag.artist
-        audio_file_data.file_Publisher = audiofile.tag.publisher
-        audio_file_data.file_Genre = audiofile.tag.genre
-        track, total_tracks = dictor(audiofile.tag.track_num)
-        audio_file_data.file_Track = track
-        audio_file_data.total_tracks = total_tracks
-        audio_file_data.file_Year = audiofile.tag.getBestDate()
+        if audio_file_data.file_ext == "mp3":
+            audio_file_data, message = parse_and_save_mp3_file(session, audio_file_data, full_file_path)
 
-        original_comments = audiofile.tag.comments
-
-        audiofile.tag.clear()
-
-        # cover image
-        if audio_file_data.album_image_url != "":
-            try:
-                album_img_resp = session.get(audio_file_data.album_image_url, headers=BROWSER_REQUEST_HEADERS)
-                album_img_bytes = album_img_resp.content
-                audiofile.tag.images.set(3, album_img_bytes, "image/jpeg")
-            except Exception as e:
-                print(f"Error downloading album cover image from { audio_file_data.album_image_url }: \n{ e }")
-
-        # artist image
-        if audio_file_data.site_speaker_image_url != "":
-            try:
-                speaker_img_resp = session.get(audio_file_data.site_speaker_image_url)
-                speaker_img_bytes = speaker_img_resp.content
-                audiofile.tag.images.set(8, speaker_img_bytes, "image/jpeg")
-            except Exception as e:
-                print(f"Error downloading speaker image from { audio_file_data.site_speaker_image_url }: \n{ e }")
-
-        # add appropriate metadata to audio file
-        # TODO: full comparison of original metadata and metadata from page. Only use page if blank?
-        # TODO: add ALL relevant data from audiofile.tag to audio_file_data
-
-        # use original mp3 title if present
-        if audio_file_data.file_Title_Original and len(audio_file_data.file_Title_Original) > 0:
-            audiofile.tag.title = audio_file_data.file_Title_Original
-
-        if not audio_file_data.file_Album or len(audio_file_data.file_Album) == 0:
-            audiofile.tag.album = audio_file_data.file_Album
-
-        if audio_file_data.file_Artist:
-            audiofile.tag.artist = audio_file_data.file_Artist
-
-        if audio_file_data.file_Album_Artist:
-            audiofile.tag.album_artist = audio_file_data.file_Album_Artist
-
-        if audio_file_data.file_Year:
-            audiofile.tag.release_date = audio_file_data.file_Year
-
-        # attach download and details links
-        audiofile.tag.audio_file_url = audio_file_data.site_download_url
-        audiofile.tag.audio_source_url = audio_file_data.site_details_url
-
-        # definitely use page_data genre
-        audiofile.tag.genre = audio_file_data.file_Genre
-
+        # create directory structure for album
         try:
+            # f"{STORAGE_PATH}{filename}.{file_extension}"
+            album_file_path = STORAGE_PATH
+            if audio_file_data.file_Album and len(audio_file_data.file_Album) > 0:
+                album_file_path = os.path.join(STORAGE_PATH, audio_file_data.file_Album.replace(":", ""))
+            album_file_path = album_file_path.strip()
 
-            comments = u"Original metadata:\n"
-            comments += u"Title: {}\n".format(audio_file_data.file_Title_Original)
-            comments += u"Album: {}\n".format(audio_file_data.file_Album)
-            comments += u"Artist: {}\n".format(audio_file_data.file_Artist)
-            comments += u"Album Artist: {}\n".format(audio_file_data.file_Album_Artist)
-            comments += u"Genre: {}\n".format(audio_file_data.file_Genre)
-            comments += u"Track: {}\n".format(audio_file_data.file_Track)
-            comments += u"Year: {}\n".format(audio_file_data.file_Year)
-            comments += u"Original Comments:\n"
+            if not os.path.isdir(album_file_path):
+                os.mkdir(album_file_path)
 
-            for comment in original_comments:
-                comments += comment.text
+            file_path_with_album_dir = os.path.join(album_file_path, audio_file_data.file_filename_current)
 
-            audiofile.tag.comments.set(comments)
-            audio_file_data.file_Comment = "\n".join([c.text for c in original_comments])
+            if os.path.isfile(full_file_path):
+                os.replace(full_file_path, file_path_with_album_dir)
+            audio_file_data.file_download_path = album_file_path
 
+            message = "Download of {0} successful!\n".format(audio_file_data.file_filename_current)
         except Exception as ex:
-            message = f"Couldn't set mp3 comments: { ex }"
-
-        try:
-            # finally save all metadata to mp3 file
-            audiofile.tag.save()
-            # confirm download on metadata class
-            audio_file_data.file_download_success = True
-
-        except Exception as ex:
-            audio_file_data.file_download_success = False
-            message = "Download of {0} failed: {1}\n".format(audio_file_data.file_filename_current, ex)
-
-        if audio_file_data.file_download_success:
-            # create directory structure for album
-            try:
-                # f"{STORAGE_PATH}{filename}.{file_extension}"
-                album_file_path = STORAGE_PATH
-                if audio_file_data.file_Album and len(audio_file_data.file_Album) > 0:
-                    album_file_path = os.path.join(STORAGE_PATH, audio_file_data.file_Album.replace(":", ""))
-                album_file_path = album_file_path.strip()
-
-                if not os.path.isdir(album_file_path):
-                    os.mkdir(album_file_path)
-
-                file_path_with_album_dir = os.path.join(album_file_path, audio_file_data.file_filename_current)
-
-                if os.path.isfile(full_file_path):
-                    os.replace(full_file_path, file_path_with_album_dir)
-                audio_file_data.file_download_path = album_file_path
-
-                message = "Download of {0} successful!\n".format(audio_file_data.file_filename_current)
-            except Exception as ex:
-                print(f"Unable to move { full_file_path } to album directory after download: { ex }\n")
+            print(f"Unable to move { full_file_path } to album directory after download: { ex }\n")
 
     else:
         message = "Download of {0} failed".format(audio_file_data.file_filename_current)
@@ -356,6 +265,103 @@ def download_file_from_page(session, audio_file_data: MetadataRow):
             print(f"Error downloading outline for file { audio_file_data.site_ID }: { e }")
 
     return message, audio_file_data
+
+
+def parse_and_save_mp3_file(session, audio_file_data: MetadataRow, full_file_path: str):
+    message = ""
+    # get original file metadata
+    audiofile = eyed3.load(full_file_path)
+    audio_file_data.file_Title_Original = audiofile.tag.title
+    audio_file_data.file_Album = audiofile.tag.album
+    audio_file_data.file_Album_Artist = audiofile.tag.album_artist
+    audio_file_data.file_Artist_Original = audiofile.tag.artist
+    audio_file_data.file_Publisher = audiofile.tag.publisher
+    audio_file_data.file_Genre = audiofile.tag.genre
+    track, total_tracks = dictor(audiofile.tag.track_num)
+    audio_file_data.file_Track = track
+    audio_file_data.total_tracks = total_tracks
+    audio_file_data.file_Year = audiofile.tag.getBestDate()
+
+    original_comments = audiofile.tag.comments
+
+    audiofile.tag.clear()
+
+    # cover image
+    if audio_file_data.album_image_url != "":
+        try:
+            album_img_resp = session.get(audio_file_data.album_image_url, headers=BROWSER_REQUEST_HEADERS)
+            album_img_bytes = album_img_resp.content
+            audiofile.tag.images.set(3, album_img_bytes, "image/jpeg")
+        except Exception as e:
+            print(f"Error downloading album cover image from {audio_file_data.album_image_url}: \n{e}")
+
+    # artist image
+    if audio_file_data.site_speaker_image_url != "":
+        try:
+            speaker_img_resp = session.get(audio_file_data.site_speaker_image_url)
+            speaker_img_bytes = speaker_img_resp.content
+            audiofile.tag.images.set(8, speaker_img_bytes, "image/jpeg")
+        except Exception as e:
+            print(f"Error downloading speaker image from {audio_file_data.site_speaker_image_url}: \n{e}")
+
+    # add appropriate metadata to audio file
+    # TODO: full comparison of original metadata and metadata from page. Only use page if blank?
+    # TODO: add ALL relevant data from audiofile.tag to audio_file_data
+
+    # use original mp3 title if present
+    if audio_file_data.file_Title_Original and len(audio_file_data.file_Title_Original) > 0:
+        audiofile.tag.title = audio_file_data.file_Title_Original
+
+    if not audio_file_data.file_Album or len(audio_file_data.file_Album) == 0:
+        audiofile.tag.album = audio_file_data.file_Album
+
+    if audio_file_data.file_Artist:
+        audiofile.tag.artist = audio_file_data.file_Artist
+
+    if audio_file_data.file_Album_Artist:
+        audiofile.tag.album_artist = audio_file_data.file_Album_Artist
+
+    if audio_file_data.file_Year:
+        audiofile.tag.release_date = audio_file_data.file_Year
+
+    # attach download and details links
+    audiofile.tag.audio_file_url = audio_file_data.site_download_url
+    audiofile.tag.audio_source_url = audio_file_data.site_details_url
+
+    # definitely use page_data genre
+    audiofile.tag.genre = audio_file_data.file_Genre
+
+    try:
+
+        comments = u"Original metadata:\n"
+        comments += u"Title: {}\n".format(audio_file_data.file_Title_Original)
+        comments += u"Album: {}\n".format(audio_file_data.file_Album)
+        comments += u"Artist: {}\n".format(audio_file_data.file_Artist)
+        comments += u"Album Artist: {}\n".format(audio_file_data.file_Album_Artist)
+        comments += u"Genre: {}\n".format(audio_file_data.file_Genre)
+        comments += u"Track: {}\n".format(audio_file_data.file_Track)
+        comments += u"Year: {}\n".format(audio_file_data.file_Year)
+        comments += u"Original Comments:\n"
+
+        for comment in original_comments:
+            comments += comment.text
+
+        audiofile.tag.comments.set(comments)
+        audio_file_data.file_Comment = "\n".join([c.text for c in original_comments])
+
+    except Exception as ex:
+        message = f"Couldn't set mp3 comments: {ex}"
+
+    try:
+        # finally save all metadata to mp3 file
+        audiofile.tag.save()
+        # confirm download on metadata class
+        audio_file_data.file_download_success = True
+
+    except Exception as ex:
+        audio_file_data.file_download_success = False
+        message = "Download of {0} failed: {1}\n".format(audio_file_data.file_filename_current, ex)
+    return audio_file_data, message
 
 
 def attempt_file_download(session, file_id, metadata_only=False, redownload: bool = False, attempt_invalid_download: bool = False):
