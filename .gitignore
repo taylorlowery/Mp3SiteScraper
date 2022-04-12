@@ -22,8 +22,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-Lib/
+# lib/
+# Lib/
 Scripts/
 Include/
 lib64/
